@@ -7,7 +7,11 @@ export const metadata: Metadata = {
   description:
     'Multi-tenant SaaS platform for cafes and restaurants: QR digital menus, live tables, kitchen display system, customer ordering, and billing.',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/apple-icon.png',
   },
 };
 
