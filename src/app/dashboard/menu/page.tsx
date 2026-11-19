@@ -14,14 +14,22 @@ import {
   Tag,
   Clock,
   Sparkles,
+  Search,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
+import { SkeletonFoodCard } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 export default function DashboardMenuPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const { success, error: toastError, info } = useToast();
 
   // Modals
   const [showItemModal, setShowItemModal] = useState(false);
@@ -39,9 +47,7 @@ export default function DashboardMenuPage() {
     preparationMinutes: 12,
     isFeatured: false,
     isBestseller: false,
-    variants: [
-      { name: 'Regular', price: '', isDefault: true },
-    ],
+    variants: [{ name: 'Regular', price: '', isDefault: true }],
   });
 
   const [catName, setCatName] = useState('');
@@ -75,7 +81,7 @@ export default function DashboardMenuPage() {
     fetchMenu();
   }, []);
 
-  const handleToggleAvailability = async (itemId: string, currentStatus: boolean) => {
+  const handleToggleAvailability = async (itemId: string, currentStatus: boolean, itemName: string) => {
     try {
       await fetch(`/api/v1/menu-items/${itemId}`, {
         method: 'PATCH',
@@ -83,8 +89,12 @@ export default function DashboardMenuPage() {
         body: JSON.stringify({ isAvailable: !currentStatus }),
       });
       setItems(items.map((it) => (it.id === itemId ? { ...it, isAvailable: !currentStatus } : it)));
-    } catch (e) {
-      console.error(e);
+      success(
+        !currentStatus ? 'Item In Stock' : 'Item Marked Sold Out',
+        `${itemName} status updated.`
+      );
+    } catch {
+      toastError('Error', 'Failed to toggle item availability.');
     }
   };
 
@@ -100,11 +110,16 @@ export default function DashboardMenuPage() {
       });
       const data = await res.json();
       if (data.success) {
+        success('Category Created', `${catName} added to menu.`);
         setCatName('');
         setCatDesc('');
         setShowCatModal(false);
         fetchMenu();
+      } else {
+        toastError('Failed', data.error || 'Could not create category');
       }
+    } catch {
+      toastError('Network Error', 'Check your connection.');
     } finally {
       setSubmitting(false);
     }
@@ -133,6 +148,7 @@ export default function DashboardMenuPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create item');
 
+      success('Food Item Created', `${itemForm.name} is now in your menu catalog.`);
       setShowItemModal(false);
       setItemForm({
         categoryId: categories[0]?.id || '',
@@ -149,6 +165,7 @@ export default function DashboardMenuPage() {
       fetchMenu();
     } catch (err: any) {
       setError(err.message);
+      toastError('Item Creation Failed', err.message);
     } finally {
       setSubmitting(false);
     }
@@ -165,20 +182,30 @@ export default function DashboardMenuPage() {
       });
       const data = await res.json();
       if (data.success) {
+        success('CSV Imported', `${data.createdCount || 'Multiple'} dishes added to menu.`);
         setShowCsvModal(false);
         setCsvContent('');
         fetchMenu();
       } else {
-        alert(data.error);
+        toastError('Import Failed', data.error);
       }
+    } catch {
+      toastError('Network Error', 'Check your connection.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const filteredItems = items.filter((it) => {
-    if (selectedCatId === 'ALL') return true;
-    return it.categoryId === selectedCatId;
+    if (selectedCatId !== 'ALL' && it.categoryId !== selectedCatId) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        it.name.toLowerCase().includes(q) ||
+        (it.description && it.description.toLowerCase().includes(q))
+      );
+    }
+    return true;
   });
 
   return (
@@ -186,8 +213,11 @@ export default function DashboardMenuPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
+            <Sparkles className="w-3.5 h-3.5" /> Digital Menu Catalog
+          </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Menu Catalog</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-0.5">
             Manage your categories, food items, variants, prices, and stock availability.
           </p>
         </div>
@@ -197,7 +227,7 @@ export default function DashboardMenuPage() {
             onClick={() => setShowCsvModal(true)}
             className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" /> Bulk CSV Import
+            <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Bulk CSV Import
           </button>
           <button
             onClick={() => setShowCatModal(true)}
@@ -214,42 +244,70 @@ export default function DashboardMenuPage() {
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 text-sm">
-        <button
-          onClick={() => setSelectedCatId('ALL')}
-          className={`px-3.5 py-1.5 rounded-xl font-semibold whitespace-nowrap transition ${
-            selectedCatId === 'ALL'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          All Items ({items.length})
-        </button>
+      {/* Search and Category Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* Search */}
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search food by name or ingredient..."
+            className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
-        {categories.map((c) => (
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full text-xs">
           <button
-            key={c.id}
-            onClick={() => setSelectedCatId(c.id)}
-            className={`px-3.5 py-1.5 rounded-xl font-semibold whitespace-nowrap transition ${
-              selectedCatId === c.id
+            onClick={() => setSelectedCatId('ALL')}
+            className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition ${
+              selectedCatId === 'ALL'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {c.name} ({items.filter((it) => it.categoryId === c.id).length})
+            All Items ({items.length})
           </button>
-        ))}
+
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCatId(c.id)}
+              className={`px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition ${
+                selectedCatId === c.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {c.name} ({items.filter((it) => it.categoryId === c.id).length})
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Food Items Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 bg-white rounded-2xl border border-slate-200">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SkeletonFoodCard />
+          <SkeletonFoodCard />
+          <SkeletonFoodCard />
+          <SkeletonFoodCard />
+          <SkeletonFoodCard />
+          <SkeletonFoodCard />
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 text-slate-500 text-sm">
-          No food items in this category yet. Click "Add Food Item" to create one.
+          No food items found matching your criteria.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -264,7 +322,7 @@ export default function DashboardMenuPage() {
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-20 h-20 rounded-xl object-cover shrink-0 bg-slate-100"
+                      className="w-20 h-20 rounded-xl object-cover shrink-0 bg-slate-100 border border-slate-100"
                     />
                   )}
                   <div className="min-w-0 flex-1">
@@ -296,7 +354,7 @@ export default function DashboardMenuPage() {
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                   <div className="flex items-center gap-2">
                     {item.isBestseller && (
-                      <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">
+                      <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px] border border-amber-200">
                         ★ Bestseller
                       </span>
                     )}
@@ -316,18 +374,24 @@ export default function DashboardMenuPage() {
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-600">
                   {item.isAvailable ? (
-                    <span className="text-emerald-600 font-bold">In Stock</span>
+                    <span className="text-emerald-600 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> In Stock
+                    </span>
                   ) : (
-                    <span className="text-rose-600 font-bold">Sold Out</span>
+                    <span className="text-rose-600 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Sold Out
+                    </span>
                   )}
                 </span>
 
                 <button
-                  onClick={() => handleToggleAvailability(item.id, item.isAvailable)}
-                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition ${
+                  onClick={() =>
+                    handleToggleAvailability(item.id, item.isAvailable, item.name)
+                  }
+                  className={`text-xs px-3 py-1 rounded-lg font-semibold transition border ${
                     item.isAvailable
-                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
                   }`}
                 >
                   {item.isAvailable ? 'Mark Sold Out' : 'Mark Available'}
@@ -340,240 +404,254 @@ export default function DashboardMenuPage() {
 
       {/* Add Item Modal */}
       {showItemModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <h3 className="font-bold text-lg text-slate-900 border-b border-slate-100 pb-3">
-              Add New Food Item
-            </h3>
-
+        <Modal
+          isOpen={showItemModal}
+          onClose={() => setShowItemModal(false)}
+          title="Add New Food Item"
+          subtitle="Define dish details, prices, variants, and dietary tags."
+          maxWidth="max-w-xl"
+        >
+          <form onSubmit={handleCreateItem} className="space-y-4 text-xs">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleCreateItem} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="font-semibold text-slate-700 uppercase">Category</label>
-                  <select
-                    value={itemForm.categoryId}
-                    onChange={(e) => setItemForm({ ...itemForm, categoryId: e.target.value })}
-                    className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl bg-white text-sm"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 uppercase">Dietary Type</label>
-                  <select
-                    value={itemForm.foodType}
-                    onChange={(e) => setItemForm({ ...itemForm, foodType: e.target.value })}
-                    className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl bg-white text-sm"
-                  >
-                    <option value="VEG">Vegetarian (Green)</option>
-                    <option value="NON_VEG">Non-Vegetarian (Red)</option>
-                    <option value="EGG">Egg (Yellow)</option>
-                    <option value="VEGAN">Vegan</option>
-                  </select>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="font-semibold text-slate-700 uppercase">Item Name</label>
-                <input
-                  type="text"
+                <label className="font-bold text-slate-700 uppercase">Category *</label>
+                <select
                   required
-                  value={itemForm.name}
-                  onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  placeholder="e.g. Avocado Toast on Sourdough"
-                  className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 uppercase">Description</label>
-                <textarea
-                  rows={2}
-                  value={itemForm.description}
-                  onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                  placeholder="Ingredients, taste notes, and craftsmanship..."
-                  className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="font-semibold text-slate-700 uppercase">Base Price (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={itemForm.basePrice}
-                    onChange={(e) => setItemForm({ ...itemForm, basePrice: e.target.value })}
-                    placeholder="249"
-                    className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 uppercase">Prep Time (mins)</label>
-                  <input
-                    type="number"
-                    value={itemForm.preparationMinutes}
-                    onChange={(e) => setItemForm({ ...itemForm, preparationMinutes: e.target.value })}
-                    className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 uppercase">Image URL (Unsplash or Cloudinary)</label>
-                <input
-                  type="url"
-                  value={itemForm.image}
-                  onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
-                />
-              </div>
-
-              <div className="flex gap-4 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isFeatured}
-                    onChange={(e) => setItemForm({ ...itemForm, isFeatured: e.target.checked })}
-                    className="rounded text-blue-600"
-                  />
-                  Featured on Home
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isBestseller}
-                    onChange={(e) => setItemForm({ ...itemForm, isBestseller: e.target.checked })}
-                    className="rounded text-blue-600"
-                  />
-                  Bestseller Tag
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowItemModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  value={itemForm.categoryId}
+                  onChange={(e) => setItemForm({ ...itemForm, categoryId: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 flex items-center gap-1.5"
-                >
-                  {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Item'}
-                </button>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* Add Category Modal */}
-      {showCatModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-lg text-slate-900 border-b border-slate-100 pb-3">
-              Create New Category
-            </h3>
-
-            <form onSubmit={handleCreateCategory} className="space-y-4 text-xs">
               <div>
-                <label className="font-semibold text-slate-700 uppercase">Category Name</label>
+                <label className="font-bold text-slate-700 uppercase">Dietary Classification *</label>
+                <select
+                  value={itemForm.foodType}
+                  onChange={(e) => setItemForm({ ...itemForm, foodType: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+                >
+                  <option value="VEG">🟢 Vegetarian</option>
+                  <option value="NON_VEG">🔴 Non-Vegetarian</option>
+                  <option value="EGG">🟡 Contains Egg</option>
+                  <option value="VEGAN">🌱 100% Vegan</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 uppercase">Item Name *</label>
+              <input
+                type="text"
+                required
+                value={itemForm.name}
+                onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                placeholder="e.g. Avocado Toast with Poached Egg"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 uppercase">Description</label>
+              <textarea
+                rows={2}
+                value={itemForm.description}
+                onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                placeholder="Artisanal sourdough toast topped with fresh guacamole and heirloom tomatoes."
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="font-bold text-slate-700 uppercase">Base Price (₹) *</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  value={catName}
-                  onChange={(e) => setCatName(e.target.value)}
-                  placeholder="e.g. Sourdough Bagels"
-                  className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
+                  value={itemForm.basePrice}
+                  onChange={(e) => setItemForm({ ...itemForm, basePrice: e.target.value })}
+                  placeholder="249"
+                  className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 uppercase">Description (optional)</label>
-                <textarea
-                  rows={2}
-                  value={catDesc}
-                  onChange={(e) => setCatDesc(e.target.value)}
-                  placeholder="Brief note about this category..."
-                  className="mt-1 w-full p-2.5 border border-slate-300 rounded-xl text-sm"
+                <label className="font-bold text-slate-700 uppercase">Prep Time (Mins)</label>
+                <input
+                  type="number"
+                  value={itemForm.preparationMinutes}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, preparationMinutes: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
                 />
               </div>
+            </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowCatModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700"
-                >
-                  Save Category
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div>
+              <label className="font-bold text-slate-700 uppercase">Image URL (Unsplash / CDN)</label>
+              <input
+                type="url"
+                value={itemForm.image}
+                onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
+                placeholder="https://images.unsplash.com/photo-..."
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              />
+              {itemForm.image && (
+                <div className="mt-2 flex items-center gap-2">
+                  <img
+                    src={itemForm.image}
+                    alt="Preview"
+                    className="w-12 h-12 rounded-lg object-cover border"
+                  />
+                  <span className="text-[11px] text-slate-500">Image Preview</span>
+                </div>
+              )}
+            </div>
 
-      {/* CSV Import Modal */}
-      {showCsvModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-2xl space-y-4">
-            <h3 className="font-bold text-lg text-slate-900 border-b border-slate-100 pb-3">
-              Bulk CSV Menu Importer
-            </h3>
-            <p className="text-xs text-slate-600">
-              Columns: Category, Item Name, Description, Price, Food Type, Prep Time.
-            </p>
+            <div className="flex items-center gap-6 pt-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={itemForm.isFeatured}
+                  onChange={(e) => setItemForm({ ...itemForm, isFeatured: e.target.checked })}
+                  className="rounded border-slate-300 text-blue-600"
+                />
+                <span>Featured Dish</span>
+              </label>
 
-            <textarea
-              rows={8}
-              value={csvContent}
-              onChange={(e) => setCsvContent(e.target.value)}
-              placeholder="Category,Item Name,Description,Price,Food Type,Prep Time&#10;Cold Brews,Nitro Cold Brew,Creamy stout pour,199,VEG,3"
-              className="w-full p-3 font-mono text-xs border border-slate-300 rounded-xl bg-slate-50"
-            />
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={itemForm.isBestseller}
+                  onChange={(e) => setItemForm({ ...itemForm, isBestseller: e.target.checked })}
+                  className="rounded border-slate-300 text-blue-600"
+                />
+                <span>Chef Bestseller</span>
+              </label>
+            </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setShowCsvModal(false)}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600"
+                onClick={() => setShowItemModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleCsvImport}
+                type="submit"
                 disabled={submitting}
-                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700"
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 shadow-sm"
               >
-                {submitting ? 'Importing...' : 'Import CSV'}
+                {submitting ? 'Saving...' : 'Save Food Item'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Add Category Modal */}
+      {showCatModal && (
+        <Modal
+          isOpen={showCatModal}
+          onClose={() => setShowCatModal(false)}
+          title="Create Menu Category"
+          subtitle="Group your dishes logically (e.g. Beverages, Mains, Desserts)"
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleCreateCategory} className="space-y-4 text-xs">
+            <div>
+              <label className="font-bold text-slate-700 uppercase">Category Name *</label>
+              <input
+                type="text"
+                required
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                placeholder="e.g. Specialty Coffees"
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 uppercase">Description (Optional)</label>
+              <input
+                type="text"
+                value={catDesc}
+                onChange={(e) => setCatDesc(e.target.value)}
+                placeholder="Single-origin beans and manual brews."
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCatModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 shadow-sm"
+              >
+                {submitting ? 'Creating...' : 'Create Category'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* CSV Import Modal */}
+      {showCsvModal && (
+        <Modal
+          isOpen={showCsvModal}
+          onClose={() => setShowCsvModal(false)}
+          title="Bulk CSV Menu Import"
+          subtitle="Paste CSV text with columns: Category, Item Name, Description, Price, Food Type, Prep Time"
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4 text-xs">
+            <textarea
+              rows={8}
+              value={csvContent}
+              onChange={(e) => setCsvContent(e.target.value)}
+              placeholder={`Category,Item Name,Description,Price,Food Type,Prep Time
+Artisanal Coffee,Flat White,Velvety double shot espresso,169,VEG,5
+Stonebaked Pizza,Margherita Bufala,Fresh buffalo mozzarella,399,VEG,15`}
+              className="w-full font-mono text-xs p-3 border border-slate-200 rounded-xl focus:ring-blue-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCsvModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCsvImport}
+                disabled={submitting || !csvContent.trim()}
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 shadow-sm disabled:opacity-50"
+              >
+                {submitting ? 'Importing...' : 'Parse & Import CSV'}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

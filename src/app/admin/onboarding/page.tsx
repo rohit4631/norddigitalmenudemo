@@ -31,10 +31,10 @@ export default function AdminOnboardingPage() {
 
   // Step 1: Cafe & Owner Form
   const [cafeData, setCafeData] = useState({
-    cafeName: '',
-    ownerName: '',
-    ownerEmail: '',
-    ownerPhone: '',
+    cafeName: 'Roastery & Co.',
+    ownerName: 'Vikram Malhotra',
+    ownerEmail: 'vikram@roastery.com',
+    ownerPhone: '9876543210',
     address: 'Sector 35 Inner Market, Chandigarh',
     planName: 'Pro',
     tempPassword: 'NordWelcome2026!',

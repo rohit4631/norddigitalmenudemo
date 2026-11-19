@@ -7,8 +7,8 @@ import { UtensilsCrossed, ShieldCheck, Store, ChefHat, UserCheck, AlertCircle, L
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('owner@nordicroast.com');
+  const [password, setPassword] = useState('owner123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +85,72 @@ export default function LoginPage() {
               <span>{error}</span>
             </div>
           )}
+
+          {/* Testing Mode Preset Selector */}
+          <div className="mb-5 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl">
+            <div className="flex items-center justify-between text-xs font-semibold text-blue-900 mb-2">
+              <span>⚡ Testing Mode: Quick Fill Persona</span>
+              <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-mono">PRE-FILLED</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('owner@nordicroast.com');
+                  setPassword('owner123');
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                  email === 'owner@nordicroast.com'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                ☕ Cafe Owner
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@nordcafe.com');
+                  setPassword('admin123');
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                  email === 'admin@nordcafe.com'
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                👑 Super Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('kitchen@nordicroast.com');
+                  setPassword('kitchen123');
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                  email === 'kitchen@nordicroast.com'
+                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                🍳 Kitchen KDS
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('manager@nordicroast.com');
+                  setPassword('manager123');
+                }}
+                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                  email === 'manager@nordicroast.com'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                👔 Cafe Manager
+              </button>
+            </div>
+          </div>
 
           <form className="space-y-5" onSubmit={handleLogin}>
             <div>

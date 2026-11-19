@@ -7,8 +7,8 @@ import { Search, UtensilsCrossed, ArrowRight, AlertCircle, Loader2 } from 'lucid
 
 export default function OrderLookupPage() {
   const router = useRouter();
-  const [orderNumber, setOrderNumber] = useState('');
-  const [phone, setPhone] = useState('');
+  const [orderNumber, setOrderNumber] = useState('NC-9101');
+  const [phone, setPhone] = useState('9876543210');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

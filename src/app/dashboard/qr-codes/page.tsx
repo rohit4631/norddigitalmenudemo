@@ -12,8 +12,10 @@ import {
   Sparkles,
   Loader2,
   Layers,
+  Palette,
 } from 'lucide-react';
 import { generateQRCodeDataUrl } from '@/lib/qr';
+import { useToast } from '@/components/ui/Toast';
 
 export default function DashboardQrCodesPage() {
   const [qrCodes, setQrCodes] = useState<any[]>([]);
@@ -21,6 +23,14 @@ export default function DashboardQrCodesPage() {
   const [selectedQr, setSelectedQr] = useState<any>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [qrColor, setQrColor] = useState('#2563EB'); // Blueprint primary accent
+  const { success, info } = useToast();
+
+  const colorOptions = [
+    { label: 'Nord Blue', hex: '#2563EB' },
+    { label: 'Deep Charcoal', hex: '#0F172A' },
+    { label: 'Forest Green', hex: '#059669' },
+    { label: 'Burgundy', hex: '#9F1239' },
+  ];
 
   const fetchQrs = async () => {
     try {
@@ -41,9 +51,21 @@ export default function DashboardQrCodesPage() {
     fetchQrs();
   }, []);
 
+  const handleColorChange = async (hex: string) => {
+    setQrColor(hex);
+    if (selectedQr) {
+      const updatedDataUrl = await generateQRCodeDataUrl(selectedQr.fullUrl, {
+        color: { dark: hex, light: '#FFFFFF' },
+      });
+      setSelectedQr({ ...selectedQr, dataUrl: updatedDataUrl });
+      info('QR Color Updated', `Color changed to ${hex}`);
+    }
+  };
+
   const handleCopyLink = (fullUrl: string, token: string) => {
     navigator.clipboard.writeText(fullUrl);
     setCopiedToken(token);
+    success('Link Copied', 'Destination URL copied to clipboard.');
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
@@ -52,8 +74,11 @@ export default function DashboardQrCodesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
+            <Sparkles className="w-3.5 h-3.5" /> High-Resolution Print Assets
+          </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">QR Code Studio</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-0.5">
             Permanent high-resolution QR codes with redirect tracking and print-ready table tent cards.
           </p>
         </div>
@@ -145,54 +170,76 @@ export default function DashboardQrCodesPage() {
           </div>
 
           {/* Print-ready Tent Card Preview */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm sticky top-6 h-fit text-center">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm sticky top-6 h-fit text-center space-y-4">
             {selectedQr ? (
-              <div id="printable-receipt" className="space-y-4">
-                <div className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                  Print-Ready Table Card
-                </div>
-
-                {/* Printable Tent Card */}
-                <div className="p-6 rounded-2xl border-2 border-slate-900 bg-slate-50 space-y-3 shadow-md max-w-xs mx-auto">
-                  <div className="font-extrabold text-base tracking-tight text-slate-900">
-                    SCAN FOR DIGITAL MENU
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {selectedQr.type === 'TABLE' ? `Table ${selectedQr.table?.tableNumber}` : 'Contactless Ordering'}
-                  </div>
-
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 inline-block shadow-sm">
-                    <img
-                      src={selectedQr.dataUrl}
-                      alt="Selected QR"
-                      className="w-44 h-44 mx-auto"
-                    />
-                  </div>
-
-                  <div className="text-[11px] text-slate-600 font-medium">
-                    Point your phone camera to browse dishes, customize, and order instantly.
-                  </div>
-                  <div className="text-[9px] text-slate-400 font-mono">
-                    Powered by Nord Cafe
+              <>
+                {/* Palette picker */}
+                <div className="no-print">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                    Custom QR Color Palette
+                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    {colorOptions.map((opt) => (
+                      <button
+                        key={opt.hex}
+                        onClick={() => handleColorChange(opt.hex)}
+                        style={{ backgroundColor: opt.hex }}
+                        className={`w-7 h-7 rounded-full border-2 transition ${
+                          qrColor === opt.hex ? 'ring-2 ring-blue-500 scale-110 border-white' : 'border-transparent'
+                        }`}
+                        title={opt.label}
+                      />
+                    ))}
                   </div>
                 </div>
 
-                <div className="pt-2 flex justify-center gap-2 no-print">
-                  <a
-                    href={selectedQr.dataUrl}
-                    download={`${selectedQr.token}.png`}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold shadow hover:bg-blue-700 transition flex items-center gap-1.5"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download PNG
-                  </a>
-                  <button
-                    onClick={() => window.print()}
-                    className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
-                  >
-                    <Printer className="w-3.5 h-3.5" /> Print Card
-                  </button>
+                <div id="printable-receipt" className="space-y-4">
+                  <div className="text-xs font-bold uppercase text-slate-400 tracking-wider">
+                    Print-Ready Table Card
+                  </div>
+
+                  {/* Printable Tent Card */}
+                  <div className="p-6 rounded-2xl border-2 border-slate-900 bg-slate-50 space-y-3 shadow-md max-w-xs mx-auto">
+                    <div className="font-extrabold text-base tracking-tight text-slate-900">
+                      SCAN FOR DIGITAL MENU
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {selectedQr.type === 'TABLE'
+                        ? `Table ${selectedQr.table?.tableNumber}`
+                        : 'Contactless Ordering'}
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 inline-block shadow-sm">
+                      <img
+                        src={selectedQr.dataUrl}
+                        alt="Selected QR"
+                        className="w-44 h-44 mx-auto"
+                      />
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 font-medium">
+                      Point your phone camera to browse dishes, customize, and order instantly.
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-mono">Powered by Nord Cafe</div>
+                  </div>
+
+                  <div className="pt-2 flex justify-center gap-2 no-print">
+                    <a
+                      href={selectedQr.dataUrl}
+                      download={`${selectedQr.token}.png`}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold shadow hover:bg-blue-700 transition flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download PNG
+                    </a>
+                    <button
+                      onClick={() => window.print()}
+                      className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Print Card
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="py-12 text-slate-400 text-sm">Select a QR code to view and print.</div>
             )}

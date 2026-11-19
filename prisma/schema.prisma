@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -26,6 +27,8 @@ model User {
   sessions       Session[]
   auditLogs      AuditLog[]
   supportTickets SupportTicket[]
+  menuImports    MenuImport[]
+  menuImportAuditLogs MenuImportAuditLog[]
 }
 
 model Role {
@@ -118,6 +121,7 @@ model Cafe {
   auditLogs      AuditLog[]
   supportTickets SupportTicket[]
   userRoles      UserRole[]
+  menuImports    MenuImport[]
 }
 
 model CafeSetting {
@@ -160,6 +164,7 @@ model Branch {
   qrCodes       QRCode[]
   orders        Order[]
   userRoles     UserRole[]
+  menuImports   MenuImport[]
 }
 
 model BusinessHour {
@@ -473,6 +478,7 @@ model Plan {
   hasCustomBranding Boolean  @default(false)
   hasAnalytics      Boolean  @default(false)
   hasKds            Boolean  @default(false)
+  hasAiMenuImporter Boolean  @default(true)
   createdAt         DateTime @default(now())
 
   subscriptions Subscription[]
@@ -587,4 +593,169 @@ model SupportMessage {
   createdAt DateTime @default(now())
 
   ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// AI Menu Importer & Document Extraction Models
+// ----------------------------------------------------
+
+model MenuImport {
+  id                 String               @id @default(uuid())
+  cafeId             String
+  branchId           String?
+  uploadedBy         String
+  menuName           String
+  status             String               @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, PUBLISHED, ARCHIVED
+  processingProgress Int                  @default(0) // 0 to 100
+  currency           String               @default("INR")
+  notes              String?
+  language           String?              @default("en")
+  errorMessage       String?
+  totalItems         Int                  @default(0)
+  totalCategories    Int                  @default(0)
+  publishedAt        DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  cafe               Cafe                 @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  branch             Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user               User                 @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+  files              MenuImportFile[]
+  jobs               MenuImportJob[]
+  categories         MenuImportCategory[]
+  items              MenuImportItem[]
+  auditLogs          MenuImportAuditLog[]
+
+  @@index([cafeId])
+  @@index([status])
+}
+
+model MenuImportFile {
+  id               String      @id @default(uuid())
+  importId         String
+  originalFilename String
+  storageKey       String
+  mimeType         String
+  fileSize         Int
+  pageCount        Int         @default(1)
+  checksum         String
+  processingStatus String      @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  extractedText    String?
+  errorMessage     String?
+  createdAt        DateTime    @default(now())
+
+  import           MenuImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+}
+
+model MenuImportJob {
+  id           String      @id @default(uuid())
+  importId     String
+  provider     String      @default("LOCAL_OCR_AI") // OPENAI, GEMINI, ANTHROPIC, LOCAL_OCR_AI
+  status       String      @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
+  errorMessage String?
+  tokensUsed   Int?        @default(0)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  import       MenuImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+}
+
+model MenuImportCategory {
+  id           String           @id @default(uuid())
+  importId     String
+  name         String
+  description  String?
+  sortOrder    Int              @default(0)
+  reviewStatus String           @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED
+  createdAt    DateTime         @default(now())
+
+  import       MenuImport       @relation(fields: [importId], references: [id], onDelete: Cascade)
+  items        MenuImportItem[]
+
+  @@index([importId])
+}
+
+model MenuImportItem {
+  id                 String               @id @default(uuid())
+  importId           String
+  importCategoryId   String
+  name               String
+  description        String?
+  extractedPrice     Float
+  currency           String               @default("INR")
+  confidence         Float                @default(1.0)
+  sourcePage         Int                  @default(1)
+  sourceFile         String?
+  reviewStatus       String               @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED
+  reviewRequired     Boolean              @default(false)
+  manuallyEdited     Boolean              @default(false)
+  isVeg              Boolean?
+  foodType           String?              @default("VEG") // VEG, NON_VEG, EGG, VEGAN
+  isAvailable        Boolean              @default(true)
+  preparationMinutes Int?                 @default(15)
+  isBestseller       Boolean              @default(false)
+  image              String?
+  notes              String?
+  matchedItemId      String?
+  duplicateAction    String?              @default("IMPORT_AS_NEW") // IMPORT_AS_NEW, UPDATE_EXISTING, SKIP
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  import             MenuImport           @relation(fields: [importId], references: [id], onDelete: Cascade)
+  category           MenuImportCategory   @relation(fields: [importCategoryId], references: [id], onDelete: Cascade)
+  variants           MenuImportVariant[]
+  addons             MenuImportAddon[]
+
+  @@index([importId])
+  @@index([importCategoryId])
+}
+
+model MenuImportVariant {
+  id           String         @id @default(uuid())
+  importItemId String
+  name         String
+  price        Float
+  isDefault    Boolean        @default(false)
+
+  importItem   MenuImportItem @relation(fields: [importItemId], references: [id], onDelete: Cascade)
+
+  @@index([importItemId])
+}
+
+model MenuImportAddon {
+  id           String         @id @default(uuid())
+  importItemId String
+  name         String
+  price        Float
+  groupName    String?        @default("Add-ons")
+
+  importItem   MenuImportItem @relation(fields: [importItemId], references: [id], onDelete: Cascade)
+
+  @@index([importItemId])
+}
+
+model MenuImportAuditLog {
+  id        String     @id @default(uuid())
+  importId  String
+  userId    String
+  action    String
+  metadata  String?
+  createdAt DateTime   @default(now())
+
+  import    MenuImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 }

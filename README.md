@@ -1,4 +1,7 @@
+# norddigitalmenudemo
 # ☕ Nord Cafe — Digital Menus. Smarter Restaurants.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frohit4631%2Fnorddigitalmenudemo)
 
 A complete multi-tenant SaaS platform where cafe and restaurant owners can create and customize digital menus, generate permanent QR codes, manage dining tables, accept customer orders without app installation, streamline kitchen preparation via KDS, and track business analytics.
 
@@ -114,14 +117,27 @@ pnpm build
 
 ---
 
-## 📦 Container Deployment (Docker)
+---
 
-To run PostgreSQL and Redis in Docker:
+## ⚡ Deploying to Vercel
+
+This project is pre-configured for one-click deployment to **Vercel**:
+
+### 1. Database Setup
+Ensure you have a cloud PostgreSQL database (e.g. [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Railway](https://railway.app)).
+
+### 2. Environment Variables on Vercel
+In your Vercel Project Settings ➔ **Environment Variables**, configure:
+* `DATABASE_URL`: Your cloud PostgreSQL pooled connection string
+* `JWT_SECRET`: A secure 32+ character random secret string
+* `NEXT_PUBLIC_APP_URL`: Your Vercel production URL (e.g. `https://norddigitalmenudemo.vercel.app`)
+* `NODE_ENV`: `production`
+* `GEMINI_API_KEY`: *(Optional)* For AI Menu Importer Google Gemini extraction
+
+### 3. Database Migration & Seed
+Run migrations and initial seed data against your cloud database:
 ```bash
-docker compose up -d
+npx prisma db push
+npx tsx prisma/seed.ts
 ```
-Then run migrations and start the application:
-```bash
-pnpm db:setup
-pnpm start
-```
+

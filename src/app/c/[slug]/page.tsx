@@ -18,10 +18,14 @@ import {
   ArrowRight,
   Loader2,
   TableProperties,
+  UtensilsCrossed,
+  SlidersHorizontal,
+  ChevronRight,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { CartItem, FoodType } from '@/types';
 import { getStoredCart, saveStoredCart } from '@/lib/cartStore';
+import { soundFx } from '@/components/ui/AudioAlert';
 
 export default function CustomerMenuPage({ params }: { params: { slug: string } }) {
   const searchParams = useSearchParams();
@@ -33,10 +37,10 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState<'ALL' | 'VEG' | 'NON_VEG' | 'BESTSELLER'>('ALL');
+  const [activeCategory, setActiveCategory] = useState<string>('');
 
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCartDrawer, setShowCartDrawer] = useState(false);
 
   // Selected Item Modal for customization
   const [customizingItem, setCustomizingItem] = useState<any>(null);
@@ -46,7 +50,6 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
   const [specialInstructions, setSpecialInstructions] = useState('');
 
   useEffect(() => {
-    // Load stored cart
     setCart(getStoredCart(params.slug));
 
     Promise.all([
@@ -55,18 +58,23 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
     ])
       .then(([cData, mData]) => {
         if (cData.success) setCafe(cData.cafe);
-        if (mData.success) setCategories(mData.categories);
+        if (mData.success) {
+          setCategories(mData.categories);
+          if (mData.categories.length > 0) {
+            setActiveCategory(mData.categories[0].id);
+          }
+        }
       })
       .finally(() => setLoading(false));
   }, [params.slug]);
 
-  // Sync cart to localStorage whenever updated
   useEffect(() => {
     saveStoredCart(params.slug, cart);
   }, [cart, params.slug]);
 
   // Open customization modal
   const handleOpenItem = (item: any) => {
+    if (!item.isAvailable) return;
     setCustomizingItem(item);
     const defaultVar = item.variants?.find((v: any) => v.isDefault) || item.variants?.[0] || null;
     setSelectedVariant(defaultVar);
@@ -99,7 +107,9 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
       image: customizingItem.image,
       foodType: customizingItem.foodType,
       basePrice: customizingItem.basePrice,
-      variant: selectedVariant ? { id: selectedVariant.id, name: selectedVariant.name, price: selectedVariant.price } : null,
+      variant: selectedVariant
+        ? { id: selectedVariant.id, name: selectedVariant.name, price: selectedVariant.price }
+        : null,
       addons: selectedAddons.map((a) => ({ id: a.id, name: a.name, price: a.price })),
       quantity,
       specialInstructions: specialInstructions.trim() || undefined,
@@ -107,27 +117,8 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
     };
 
     setCart([...cart, cartLineItem]);
+    soundFx.playBlip();
     setCustomizingItem(null);
-  };
-
-  const updateCartItemQuantity = (cartItemId: string, delta: number) => {
-    const updated = cart
-      .map((item) => {
-        if (item.id === cartItemId) {
-          const newQty = item.quantity + delta;
-          if (newQty <= 0) return null;
-          const unitPrice = item.itemTotalPrice / item.quantity;
-          return {
-            ...item,
-            quantity: newQty,
-            itemTotalPrice: unitPrice * newQty,
-          };
-        }
-        return item;
-      })
-      .filter(Boolean) as CartItem[];
-
-    setCart(updated);
   };
 
   const totalCartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
@@ -135,20 +126,27 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
+        <span className="text-xs font-semibold text-slate-500">Loading menu catalog...</span>
       </div>
     );
   }
 
   if (!cafe) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-sm">
+          <UtensilsCrossed className="w-8 h-8 text-slate-400" />
+        </div>
         <h2 className="text-xl font-bold text-slate-900">Cafe Not Found</h2>
-        <p className="text-sm text-slate-500 mt-2">
-          This digital menu link is invalid or the restaurant is temporarily offline.
+        <p className="text-xs text-slate-500 mt-1 max-w-sm">
+          This digital menu link is invalid or the restaurant is currently offline.
         </p>
-        <Link href="/" className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">
+        <Link
+          href="/"
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold shadow-sm hover:bg-blue-700 transition"
+        >
           Return Home
         </Link>
       </div>
@@ -158,160 +156,188 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
   const primaryColor = cafe.themeColor || '#2563EB';
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-28">
-      {/* Table Detected Notification Banner */}
+    <div className="min-h-screen bg-[#F8FAFC] pb-32">
+      {/* 1. TABLE BANNER (If scanning a dining table QR) */}
       {tableParam && (
-        <div className="sticky top-0 z-40 bg-blue-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md">
+        <div className="sticky top-0 z-40 bg-blue-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <TableProperties className="w-4 h-4" />
-            <span>Ordering at Table: <strong className="underline uppercase tracking-wide">{tableParam}</strong></span>
+            <span>
+              Dining at Table:{' '}
+              <strong className="underline uppercase tracking-wider">{tableParam}</strong>
+            </span>
           </div>
-          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">QR Verified</span>
+          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+            Contactless Dine-In
+          </span>
         </div>
       )}
 
-      {/* Hero Cover Banner */}
-      <div className="relative h-48 sm:h-64 w-full bg-slate-900 overflow-hidden">
-        {cafe.coverImage ? (
-          <img
-            src={cafe.coverImage}
-            alt={cafe.name}
-            className="w-full h-full object-cover opacity-85"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-r from-blue-700 to-indigo-900" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/30" />
-      </div>
-
-      {/* Cafe Profile Header */}
-      <div className="max-w-3xl mx-auto px-4 -mt-16 relative z-10">
-        <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200/80 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              {cafe.logo ? (
-                <img
-                  src={cafe.logo}
-                  alt={cafe.name}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md bg-white shrink-0"
-                />
-              ) : (
-                <div
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-md shrink-0"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  {cafe.name.charAt(0)}
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                  {cafe.name}
-                </h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                      cafe.isOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                    }`}
-                  >
-                    {cafe.isOpen ? '● Open Now' : 'Closed'}
-                  </span>
-                  <span className="text-xs text-slate-500">• {cafe.todayHours}</span>
-                </div>
-              </div>
-            </div>
+      {/* 2. REFINED CAFE HEADER & BRANDING (No awkward overlapping) */}
+      <div className="max-w-4xl mx-auto px-4 pt-4 sm:pt-6">
+        <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+          {/* Banner cover */}
+          <div className="relative h-40 sm:h-56 w-full bg-slate-900 overflow-hidden">
+            {cafe.coverImage ? (
+              <img
+                src={cafe.coverImage}
+                alt={cafe.name}
+                className="w-full h-full object-cover opacity-90"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           </div>
 
-          {cafe.description && (
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {cafe.description}
-            </p>
-          )}
+          {/* Profile Details Container */}
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                {cafe.logo ? (
+                  <img
+                    src={cafe.logo}
+                    alt={cafe.name}
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-white shadow-md bg-white shrink-0 -mt-10 sm:-mt-12 relative z-10"
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-md shrink-0 -mt-10 sm:-mt-12 relative z-10"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {cafe.name.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                    {cafe.name}
+                  </h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        cafe.isOpen ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                      }`}
+                    >
+                      {cafe.isOpen ? '● Open Now' : 'Closed'}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">• {cafe.todayHours}</span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Location & Social Quick Links */}
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 flex-wrap gap-2">
-            <div className="flex items-center gap-1.5 text-slate-500">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate max-w-xs">{cafe.branches?.[0]?.address || 'Main Branch'}</span>
+              {/* Track Order CTA */}
+              <Link
+                href="/lookup"
+                className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 transition self-start sm:self-auto flex items-center gap-1.5"
+              >
+                <span>Track Previous Order</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              </Link>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/lookup`}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-              >
-                Track Order
-              </Link>
+            {cafe.description && (
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+                {cafe.description}
+              </p>
+            )}
+
+            {/* Address bar */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center gap-1.5 truncate pr-2">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">{cafe.branches?.[0]?.address || 'Sector 35-C, Chandigarh'}</span>
+              </div>
+              {cafe.branches?.[0]?.phone && (
+                <div className="flex items-center gap-1.5 shrink-0 font-medium text-slate-600">
+                  <Phone className="w-3 h-3 text-slate-400" />
+                  <span>{cafe.branches[0].phone}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search & Dietary Filters */}
-      <div className="max-w-3xl mx-auto px-4 mt-6 space-y-3">
+      {/* 3. SEARCH & DIETARY FILTER TOOLBAR */}
+      <div className="max-w-4xl mx-auto px-4 mt-6 space-y-3">
+        {/* Search Input */}
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search cappuccino, pizza, desserts..."
+            placeholder="Search coffee, pizza, burgers, or ingredients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white rounded-2xl border border-slate-200 shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400"
+            className="w-full pl-10 pr-9 py-2.5 bg-white rounded-2xl border border-slate-200 shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder-slate-400 transition"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+        {/* Dietary Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold no-scrollbar">
           <button
             onClick={() => setDietaryFilter('ALL')}
-            className={`px-3.5 py-1.5 rounded-full transition whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-xl transition whitespace-nowrap ${
               dietaryFilter === 'ALL'
                 ? 'bg-slate-900 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            All Items
+            All Dishes
           </button>
           <button
             onClick={() => setDietaryFilter('VEG')}
-            className={`px-3.5 py-1.5 rounded-full transition whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition whitespace-nowrap flex items-center gap-1.5 ${
               dietaryFilter === 'VEG'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-emerald-700 hover:bg-emerald-50'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Veg Only
+            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Pure Veg
           </button>
           <button
             onClick={() => setDietaryFilter('NON_VEG')}
-            className={`px-3.5 py-1.5 rounded-full transition whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition whitespace-nowrap flex items-center gap-1.5 ${
               dietaryFilter === 'NON_VEG'
                 ? 'bg-rose-600 text-white shadow-sm'
                 : 'bg-white border border-slate-200 text-rose-700 hover:bg-rose-50'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-rose-500"></span> Non-Veg
+            <span className="w-2 h-2 rounded-full bg-rose-500" /> Non-Veg
           </button>
           <button
             onClick={() => setDietaryFilter('BESTSELLER')}
-            className={`px-3.5 py-1.5 rounded-full transition whitespace-nowrap flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl transition whitespace-nowrap flex items-center gap-1.5 ${
               dietaryFilter === 'BESTSELLER'
                 ? 'bg-amber-500 text-slate-950 shadow-sm'
                 : 'bg-white border border-slate-200 text-amber-700 hover:bg-amber-50'
             }`}
           >
-            ★ Bestsellers
+            ★ Chef Bestsellers
           </button>
         </div>
       </div>
 
-      {/* Sticky Category Tabs */}
-      <div className="sticky top-0 z-30 bg-slate-50/95 backdrop-blur-md border-b border-slate-200 py-3 mt-4">
-        <div className="max-w-3xl mx-auto px-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+      {/* 4. STICKY HORIZONTAL CATEGORY NAVIGATION */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 py-2.5 mt-4 shadow-xs">
+        <div className="max-w-4xl mx-auto px-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {categories.map((c) => (
             <a
               key={c.id}
               href={`#cat-${c.id}`}
-              className="px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap bg-white border border-slate-200 text-slate-700 hover:text-blue-600 hover:border-blue-400 shadow-sm transition"
+              onClick={() => setActiveCategory(c.id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                activeCategory === c.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
             >
               {c.name}
             </a>
@@ -319,10 +345,10 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
         </div>
       </div>
 
-      {/* Menu Categories & Items List */}
-      <div className="max-w-3xl mx-auto px-4 mt-6 space-y-10">
+      {/* 5. BALANCED PRODUCT CATALOG (2-Column Grid on Desktop, Clean Compact Rows on Mobile) */}
+      <div className="max-w-4xl mx-auto px-4 mt-6 space-y-8">
         {categories.map((cat) => {
-          let visibleItems = cat.menuItems.filter((item: any) => {
+          const visibleItems = cat.menuItems.filter((item: any) => {
             const matchesSearch =
               !search ||
               item.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -340,91 +366,109 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-20 space-y-4">
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            <div key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-24 space-y-4">
+              <div className="flex items-baseline justify-between border-b border-slate-200/80 pb-2">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
                   {cat.name}
                 </h2>
-                {cat.description && (
-                  <p className="text-xs text-slate-500 mt-0.5">{cat.description}</p>
-                )}
+                <span className="text-xs text-slate-400 font-medium">
+                  {visibleItems.length} {visibleItems.length === 1 ? 'item' : 'items'}
+                </span>
               </div>
 
-              <div className="space-y-4">
+              {/* Balanced Food Cards Grid: 1 col on mobile, 2 cols on md+ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {visibleItems.map((item: any) => (
                   <div
                     key={item.id}
                     onClick={() => handleOpenItem(item)}
-                    className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:border-slate-300 transition cursor-pointer flex justify-between gap-4 group"
+                    className={`bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md transition flex justify-between gap-3.5 group cursor-pointer ${
+                      item.isAvailable ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-60'
+                    }`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {/* Veg / Non-Veg Indicator */}
-                        <div
-                          className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${
-                            item.foodType === 'NON_VEG'
-                              ? 'border-rose-600 text-rose-600'
-                              : 'border-emerald-600 text-emerald-600'
-                          }`}
-                        >
+                    {/* Content Left */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        {/* Title & Dietary Tag */}
+                        <div className="flex items-center gap-2">
                           <div
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              item.foodType === 'NON_VEG' ? 'bg-rose-600' : 'bg-emerald-600'
+                            className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${
+                              item.foodType === 'NON_VEG'
+                                ? 'border-rose-600'
+                                : 'border-emerald-600'
                             }`}
-                          />
+                            title={item.foodType}
+                          >
+                            <div
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                item.foodType === 'NON_VEG' ? 'bg-rose-600' : 'bg-emerald-600'
+                              }`}
+                            />
+                          </div>
+
+                          <h3 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition truncate">
+                            {item.name}
+                          </h3>
+
+                          {item.isBestseller && (
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                              ★ Bestseller
+                            </span>
+                          )}
                         </div>
 
-                        <span className="font-bold text-base text-slate-900 group-hover:text-blue-600 transition truncate">
-                          {item.name}
-                        </span>
-
-                        {item.isBestseller && (
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 shrink-0">
-                            ★ Bestseller
-                          </span>
+                        {/* Description */}
+                        {item.description && (
+                          <p className="mt-1 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
                         )}
                       </div>
 
-                      <div className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                        {item.description}
-                      </div>
-
-                      <div className="mt-3 flex items-center gap-3">
-                        <span className="font-extrabold text-base text-slate-900">
+                      {/* Price & Variant Pill */}
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-slate-900">
                           {formatCurrency(item.basePrice)}
                         </span>
                         {item.variants && item.variants.length > 0 && (
-                          <span className="text-[10px] font-medium text-slate-400">
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                             Customizable
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Image & Add Button */}
-                    <div className="relative shrink-0 flex flex-col items-center">
+                    {/* Image & Add Button Right */}
+                    <div className="relative shrink-0 flex flex-col items-center justify-between">
                       {item.image ? (
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover bg-slate-100"
+                          className="w-22 h-22 sm:w-24 sm:h-24 rounded-xl object-cover bg-slate-100 border border-slate-100"
                         />
                       ) : (
-                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 text-xs">
-                          Nord Cafe
+                        <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-xs font-bold">
+                          Nord
                         </div>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenItem(item);
-                        }}
-                        className="mt-[-16px] px-5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-extrabold text-blue-600 shadow-md hover:bg-blue-50 transition"
-                      >
-                        ADD
-                      </button>
+                      {/* Add Button */}
+                      {item.isAvailable ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenItem(item);
+                          }}
+                          className="mt-[-14px] px-4 py-1 bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-black shadow-sm transition active:scale-95"
+                        >
+                          ADD +
+                        </button>
+                      ) : (
+                        <span className="mt-[-14px] px-2.5 py-1 bg-slate-100 border border-slate-300 text-slate-400 rounded-lg text-[10px] font-bold">
+                          SOLD OUT
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -434,190 +478,203 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
         })}
       </div>
 
-      {/* Product Detail Customization Modal */}
+      {/* 6. PRODUCT CUSTOMIZATION MODAL */}
       {customizingItem && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
           <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col justify-between">
-            <div className="relative">
-              {customizingItem.image && (
-                <img
-                  src={customizingItem.image}
-                  alt={customizingItem.name}
-                  className="w-full h-48 sm:h-56 object-cover"
-                />
-              )}
-              <button
-                onClick={() => setCustomizingItem(null)}
-                className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      customizingItem.foodType === 'NON_VEG' ? 'bg-rose-600' : 'bg-emerald-600'
-                    }`}
+            {/* Modal Image & Header */}
+            <div>
+              <div className="relative">
+                {customizingItem.image && (
+                  <img
+                    src={customizingItem.image}
+                    alt={customizingItem.name}
+                    className="w-full h-48 sm:h-52 object-cover"
                   />
-                  <h3 className="text-xl font-extrabold text-slate-900">
-                    {customizingItem.name}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  {customizingItem.description}
-                </p>
+                )}
+                <button
+                  onClick={() => setCustomizingItem(null)}
+                  className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-md text-slate-700 hover:text-slate-900 rounded-full shadow-md transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Variants / Sizes Selection */}
-              {customizingItem.variants && customizingItem.variants.length > 0 && (
-                <div className="space-y-2 border-t border-slate-100 pt-4">
-                  <div className="text-xs font-bold uppercase text-slate-700">Select Size</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {customizingItem.variants.map((v: any) => {
-                      const isSel = selectedVariant?.id === v.id;
-                      return (
-                        <button
+              <div className="p-5 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">
+                      {customizingItem.name}
+                    </h2>
+                    <span className="text-base font-extrabold text-blue-600">
+                      {formatCurrency(
+                        selectedVariant ? selectedVariant.price : customizingItem.basePrice
+                      )}
+                    </span>
+                  </div>
+                  {customizingItem.description && (
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      {customizingItem.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Variants Selection (if dish has multiple sizes/variants) */}
+                {customizingItem.variants && customizingItem.variants.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                      Choose Size / Option *
+                    </label>
+                    <div className="space-y-1.5">
+                      {customizingItem.variants.map((v: any) => (
+                        <label
                           key={v.id}
-                          type="button"
-                          onClick={() => setSelectedVariant(v)}
-                          className={`p-3 rounded-xl border text-left transition flex items-center justify-between ${
-                            isSel
-                              ? 'border-blue-600 bg-blue-50/60 ring-1 ring-blue-500'
-                              : 'border-slate-200 hover:border-slate-300'
+                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer text-xs transition ${
+                            selectedVariant?.id === v.id
+                              ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-bold'
+                              : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                           }`}
                         >
-                          <span className="text-xs font-bold text-slate-800">{v.name}</span>
-                          <span className="text-xs font-extrabold text-slate-900">{formatCurrency(v.price)}</span>
-                        </button>
-                      );
-                    })}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="variant"
+                              checked={selectedVariant?.id === v.id}
+                              onChange={() => setSelectedVariant(v)}
+                              className="text-blue-600"
+                            />
+                            <span>{v.name}</span>
+                          </div>
+                          <span>{formatCurrency(v.price)}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Addons Selection */}
-              {customizingItem.menuItemAddonGroups && customizingItem.menuItemAddonGroups.length > 0 && (
-                <div className="space-y-4 border-t border-slate-100 pt-4">
-                  {customizingItem.menuItemAddonGroups.map((ag: any) => (
-                    <div key={ag.addonGroup.id} className="space-y-2">
-                      <div className="text-xs font-bold uppercase text-slate-700">
-                        {ag.addonGroup.name}
-                      </div>
-                      <div className="space-y-2">
-                        {ag.addonGroup.options.map((opt: any) => {
-                          const isChecked = selectedAddons.some((a) => a.id === opt.id);
-                          return (
-                            <label
-                              key={opt.id}
-                              onClick={() => toggleAddon(opt)}
-                              className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition text-xs ${
-                                isChecked
-                                  ? 'border-blue-600 bg-blue-50/40 text-blue-900'
-                                  : 'border-slate-200 text-slate-700'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-4 h-4 rounded border flex items-center justify-center ${
-                                    isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'
+                {/* Add-ons Checklist */}
+                {customizingItem.menuItemAddonGroups &&
+                  customizingItem.menuItemAddonGroups.length > 0 && (
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                      {customizingItem.menuItemAddonGroups.map((grp: any) => (
+                        <div key={grp.addonGroup.id} className="space-y-2">
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                            {grp.addonGroup.name} (Optional)
+                          </label>
+                          <div className="space-y-1.5">
+                            {grp.addonGroup.options.map((opt: any) => {
+                              const isChecked = selectedAddons.some((a) => a.id === opt.id);
+                              return (
+                                <label
+                                  key={opt.id}
+                                  className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer text-xs transition ${
+                                    isChecked
+                                      ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-semibold'
+                                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                                   }`}
                                 >
-                                  {isChecked && <Check className="w-3 h-3" />}
-                                </div>
-                                <span className="font-medium">{opt.name}</span>
-                              </div>
-                              <span className="font-bold">+{formatCurrency(opt.price)}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => toggleAddon(opt)}
+                                      className="rounded text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>{opt.name}</span>
+                                  </div>
+                                  <span>+{formatCurrency(opt.price)}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  )}
 
-              {/* Special Instructions */}
-              <div className="border-t border-slate-100 pt-4">
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Special Kitchen Note
-                </label>
-                <input
-                  type="text"
-                  value={specialInstructions}
-                  onChange={(e) => setSpecialInstructions(e.target.value)}
-                  placeholder="e.g. Extra hot, less sugar, no ice..."
-                  className="w-full p-2.5 text-xs border border-slate-300 rounded-xl focus:ring-blue-500 focus:border-blue-500"
-                />
+                {/* Special Instructions */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                    Special Cooking Instructions
+                  </label>
+                  <input
+                    type="text"
+                    value={specialInstructions}
+                    onChange={(e) => setSpecialInstructions(e.target.value)}
+                    placeholder="e.g. Less spicy, extra hot water on side"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Modal Bottom Bar with Quantity & Add Button */}
+            {/* Modal Bottom Stepper & Add Button */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4">
-              <div className="flex items-center border border-slate-300 rounded-xl bg-white p-1">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-xs">
                 <button
                   type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="font-bold text-sm px-3 text-slate-900">{quantity}</span>
+                <span className="w-8 text-center font-extrabold text-sm text-slate-900">
+                  {quantity}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Total Price & Add to Cart */}
-              {(() => {
-                const base = selectedVariant ? selectedVariant.price : customizingItem.basePrice;
-                const addonsTot = selectedAddons.reduce((acc, a) => acc + a.price, 0);
-                const finalTot = (base + addonsTot) * quantity;
-                return (
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md flex items-center justify-between transition"
-                  >
-                    <span>Add to Order</span>
-                    <span>{formatCurrency(finalTot)}</span>
-                  </button>
-                );
-              })()}
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center justify-between px-4 transition active:scale-98"
+              >
+                <span>Add to Cart</span>
+                <span>
+                  {formatCurrency(
+                    ((selectedVariant ? selectedVariant.price : customizingItem.basePrice) +
+                      selectedAddons.reduce((acc, a) => acc + a.price, 0)) *
+                      quantity
+                  )}
+                </span>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Floating Bottom Cart Bar */}
-      {totalCartCount > 0 && (
-        <div className="fixed bottom-4 left-0 right-0 z-40 px-4">
-          <div className="max-w-md mx-auto bg-slate-950 text-white p-3.5 rounded-2xl shadow-2xl flex items-center justify-between border border-slate-800 animate-in slide-in-from-bottom">
+      {/* 7. ENHANCED FLOATING CART BAR (Safe-area compliant, slide-up animation) */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-4 inset-x-0 z-40 px-4 max-w-lg mx-auto animate-in slide-in-from-bottom-4 duration-200">
+          <Link
+            href={`/c/${params.slug}/checkout${tableParam ? `?table=${tableParam}` : ''}`}
+            className="flex items-center justify-between p-3.5 bg-slate-900 text-white rounded-2xl shadow-xl hover:bg-slate-800 transition group border border-slate-800"
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-black text-sm">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center font-extrabold text-xs">
                 {totalCartCount}
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-400">Total Bill (excl. tax)</div>
-                <div className="text-base font-extrabold text-white">
-                  {formatCurrency(totalCartSubtotal)}
+                <div className="font-extrabold text-sm">
+                  {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} in cart
+                </div>
+                <div className="text-xs text-slate-400">
+                  Subtotal: <strong className="text-white">{formatCurrency(totalCartSubtotal)}</strong>
                 </div>
               </div>
             </div>
 
-            <Link
-              href={`/c/${params.slug}/checkout${tableParam ? `?table=${tableParam}` : ''}`}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center gap-1.5"
-            >
-              View Cart & Pay <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-blue-400 group-hover:text-blue-300">
+              <span>View Cart / Checkout</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
+            </div>
+          </Link>
         </div>
       )}
     </div>

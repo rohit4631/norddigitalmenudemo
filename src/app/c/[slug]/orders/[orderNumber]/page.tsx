@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   CheckCircle2,
@@ -12,8 +12,10 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { soundFx } from '@/components/ui/AudioAlert';
 
 export default function OrderTrackingPage({
   params,
@@ -22,13 +24,25 @@ export default function OrderTrackingPage({
 }) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const previousStatusRef = useRef<string | null>(null);
 
   const fetchStatus = async () => {
     try {
       const res = await fetch(`/api/v1/public/orders/${params.orderNumber}`);
       const data = await res.json();
       if (data.success) {
-        setOrder(data.order);
+        const fetchedOrder = data.order;
+        setOrder(fetchedOrder);
+
+        // Chime when food is newly READY
+        if (
+          previousStatusRef.current &&
+          previousStatusRef.current !== 'READY' &&
+          fetchedOrder.status === 'READY'
+        ) {
+          soundFx.playOrderReadyChime();
+        }
+        previousStatusRef.current = fetchedOrder.status;
       }
     } finally {
       setLoading(false);
@@ -58,7 +72,7 @@ export default function OrderTrackingPage({
         </p>
         <Link
           href={`/c/${params.slug}`}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold"
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold shadow-sm"
         >
           Return to Menu
         </Link>
@@ -70,8 +84,15 @@ export default function OrderTrackingPage({
     { key: 'PENDING', label: 'Order Placed', desc: 'Sent to cafe kitchen' },
     { key: 'ACCEPTED', label: 'Order Accepted', desc: 'Confirmed by manager' },
     { key: 'PREPARING', label: 'Preparing', desc: 'Chef is cooking your meal' },
-    { key: 'READY', label: 'Ready', desc: order.orderType === 'DINE_IN' ? 'Being served to your table' : 'Ready for pickup' },
-    { key: 'COMPLETED', label: 'Completed', desc: 'Bon appétit!' },
+    {
+      key: 'READY',
+      label: 'Ready for Service',
+      desc:
+        order.orderType === 'DINE_IN'
+          ? `Being served to Table ${order.tableNumber || '-'}`
+          : 'Ready for counter pickup',
+    },
+    { key: 'COMPLETED', label: 'Fulfilled', desc: 'Bon appétit!' },
   ];
 
   const statusHierarchy: Record<string, number> = {
@@ -124,15 +145,17 @@ export default function OrderTrackingPage({
               : order.status === 'COMPLETED'
               ? 'Order Fulfilled!'
               : order.status === 'READY'
-              ? 'Your Food is Ready!'
+              ? '🎉 Your Food is Ready!'
               : order.status === 'PREPARING'
               ? 'Chef is Preparing Your Food'
               : 'Order Placed & Awaiting Cafe'}
           </h1>
 
           <p className="text-xs text-slate-500">
-            {order.orderType === 'DINE_IN' ? `Dine-in at Table ${order.tableNumber || '-'}` : order.orderType} • Placed at{' '}
-            {formatDateTime(order.createdAt)}
+            {order.orderType === 'DINE_IN'
+              ? `Dine-in at Table ${order.tableNumber || '-'}`
+              : order.orderType}{' '}
+            • Placed at {formatDateTime(order.createdAt)}
           </p>
 
           {order.rejectionReason && (
@@ -180,7 +203,11 @@ export default function OrderTrackingPage({
                     <div className="min-w-0 flex-1">
                       <div
                         className={`font-bold text-sm ${
-                          isCurrent ? 'text-blue-600 font-extrabold' : isPassed ? 'text-slate-900' : 'text-slate-400'
+                          isCurrent
+                            ? 'text-blue-600 font-extrabold'
+                            : isPassed
+                            ? 'text-slate-900'
+                            : 'text-slate-400'
                         }`}
                       >
                         {step.label}
@@ -194,8 +221,21 @@ export default function OrderTrackingPage({
           </div>
         )}
 
+        {/* Action button to order more */}
+        <div className="flex justify-center no-print">
+          <Link
+            href={`/c/${params.slug}${order.tableNumber ? `?table=${order.tableNumber}` : ''}`}
+            className="px-6 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+          >
+            <Plus className="w-4 h-4 text-blue-600" /> Order Additional Items
+          </Link>
+        </div>
+
         {/* Itemized Receipt Details */}
-        <div id="printable-receipt" className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div
+          id="printable-receipt"
+          className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4"
+        >
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="font-bold text-sm text-slate-900">Ordered Items</span>
             <span className="text-xs text-slate-500">Ref: {order.orderNumber}</span>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
   title: 'Nord Cafe — Digital Menus. Smarter Restaurants.',
@@ -18,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased bg-slate-50 text-slate-900 selection:bg-brand-500 selection:text-white">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );
