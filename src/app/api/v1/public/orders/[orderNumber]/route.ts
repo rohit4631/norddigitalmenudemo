@@ -41,7 +41,23 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, order });
+    // Mask sensitive customer PII if not verified via phone parameter
+    const isVerified = Boolean(phone && order.customerPhone && order.customerPhone.includes(phone.trim()));
+    const sanitizedOrder = {
+      ...order,
+      customerPhone: isVerified
+        ? order.customerPhone
+        : order.customerPhone
+        ? order.customerPhone.slice(0, 3) + '****' + order.customerPhone.slice(-2)
+        : null,
+      deliveryAddress: isVerified
+        ? order.deliveryAddress
+        : order.deliveryAddress
+        ? 'Protected Address (Customer verified on delivery)'
+        : null,
+    };
+
+    return NextResponse.json({ success: true, order: sanitizedOrder });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch order details' }, { status: 500 });
   }

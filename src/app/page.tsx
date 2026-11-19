@@ -99,18 +99,6 @@ export default function HomePage() {
               <ChefHat className="w-5 h-5 text-amber-400" /> Kitchen KDS
             </Link>
           </div>
-
-          {/* Demo Roles Quick Pill */}
-          <div className="mt-8 max-w-xl mx-auto bg-white p-3 rounded-2xl border border-slate-200 shadow-sm text-xs text-slate-600 flex items-center justify-between flex-wrap gap-2">
-            <span className="font-semibold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Seed Credentials:
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              <span className="bg-slate-100 px-2 py-1 rounded">Admin: admin@nordcafe.com</span>
-              <span className="bg-slate-100 px-2 py-1 rounded">Owner: owner@nordicroast.com</span>
-              <span className="bg-slate-100 px-2 py-1 rounded">Password: admin123 / owner123</span>
-            </div>
-          </div>
         </div>
       </section>
 

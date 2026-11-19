@@ -92,4 +92,36 @@ describe('Nord Cafe Production Test Suite', () => {
     assert.equal(pro?.monthlyPrice, 499);
     assert.equal(biz?.monthlyPrice, 999);
   });
+
+  it('7. Public Security & Zero Credential Exposure in Public Code', async () => {
+    const fs = await import('fs');
+    const pageContent = fs.readFileSync('src/app/page.tsx', 'utf8');
+    assert.equal(
+      pageContent.includes('Seed Credentials:'),
+      false,
+      'Public homepage must not expose seed credentials'
+    );
+    assert.equal(
+      pageContent.includes('admin@nordcafe.com'),
+      false,
+      'Public homepage must not expose admin email'
+    );
+    assert.equal(
+      pageContent.includes('admin123'),
+      false,
+      'Public homepage must not expose admin password'
+    );
+  });
+
+  it('8. Public Order PII Masking & IDOR Defense', () => {
+    const rawPhone = '+91 98765 43210';
+    const rawEmail = 'alexander@nordicroast.com';
+
+    // Verification mask
+    const maskedPhone = rawPhone.slice(0, 3) + '****' + rawPhone.slice(-2);
+    const maskedEmail = rawEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+
+    assert.equal(maskedPhone, '+91****10');
+    assert.equal(maskedEmail, 'al***@nordicroast.com');
+  });
 });

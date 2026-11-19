@@ -1,16 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UtensilsCrossed, ShieldCheck, Store, ChefHat, UserCheck, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('owner@nordicroast.com');
-  const [password, setPassword] = useState('owner123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDemoPersonas, setShowDemoPersonas] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('demo') === '1' || params.get('demo') === 'true') {
+        setShowDemoPersonas(true);
+      }
+    }
+  }, []);
 
   const handleLogin = async (e?: React.FormEvent, customEmail?: string, customPassword?: string) => {
     if (e) e.preventDefault();
@@ -86,71 +96,73 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Testing Mode Preset Selector */}
-          <div className="mb-5 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl">
-            <div className="flex items-center justify-between text-xs font-semibold text-blue-900 mb-2">
-              <span>⚡ Testing Mode: Quick Fill Persona</span>
-              <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-mono">PRE-FILLED</span>
+          {/* Testing Mode Preset Selector (Only rendered when ?demo=1 is specified) */}
+          {showDemoPersonas && (
+            <div className="mb-5 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl">
+              <div className="flex items-center justify-between text-xs font-semibold text-blue-900 mb-2">
+                <span>⚡ Testing Mode: Quick Fill Persona</span>
+                <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-mono">DEBUG</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('owner@nordicroast.com');
+                    setPassword('owner123');
+                  }}
+                  className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                    email === 'owner@nordicroast.com'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  ☕ Cafe Owner
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@nordcafe.com');
+                    setPassword('admin123');
+                  }}
+                  className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                    email === 'admin@nordcafe.com'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  👑 Super Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('kitchen@nordicroast.com');
+                    setPassword('kitchen123');
+                  }}
+                  className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                    email === 'kitchen@nordicroast.com'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  🍳 Kitchen KDS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('manager@nordicroast.com');
+                    setPassword('manager123');
+                  }}
+                  className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
+                    email === 'manager@nordicroast.com'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  👔 Cafe Manager
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('owner@nordicroast.com');
-                  setPassword('owner123');
-                }}
-                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
-                  email === 'owner@nordicroast.com'
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                ☕ Cafe Owner
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@nordcafe.com');
-                  setPassword('admin123');
-                }}
-                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
-                  email === 'admin@nordcafe.com'
-                    ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                👑 Super Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('kitchen@nordicroast.com');
-                  setPassword('kitchen123');
-                }}
-                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
-                  email === 'kitchen@nordicroast.com'
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                🍳 Kitchen KDS
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('manager@nordicroast.com');
-                  setPassword('manager123');
-                }}
-                className={`px-2 py-1.5 rounded-lg border text-left font-medium transition ${
-                  email === 'manager@nordicroast.com'
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                👔 Cafe Manager
-              </button>
-            </div>
-          </div>
+          )}
 
           <form className="space-y-5" onSubmit={handleLogin}>
             <div>
@@ -192,57 +204,59 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Logins Section */}
-          <div className="mt-6 pt-6 border-t border-slate-200">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center mb-3">
-              One-Click Demo Personas
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('admin@nordcafe.com', 'admin123')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 text-left transition group"
-              >
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-purple-700">
-                  <ShieldCheck className="w-4 h-4 text-purple-600" /> Super Admin
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">admin@nordcafe.com</div>
-              </button>
+          {/* Quick Demo Logins Section (Only rendered when ?demo=1 is specified) */}
+          {showDemoPersonas && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center mb-3">
+                One-Click Demo Personas
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials('admin@nordcafe.com', 'admin123')}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 text-left transition group"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-purple-700">
+                    <ShieldCheck className="w-4 h-4 text-purple-600" /> Super Admin
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 truncate">admin@nordcafe.com</div>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('owner@nordicroast.com', 'owner123')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-left transition group"
-              >
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-blue-700">
-                  <Store className="w-4 h-4 text-blue-600" /> Cafe Owner
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">owner@nordicroast.com</div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials('owner@nordicroast.com', 'owner123')}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-left transition group"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-blue-700">
+                    <Store className="w-4 h-4 text-blue-600" /> Cafe Owner
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 truncate">owner@nordicroast.com</div>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('manager@nordicroast.com', 'manager123')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-left transition group"
-              >
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-indigo-700">
-                  <UserCheck className="w-4 h-4 text-indigo-600" /> Cafe Manager
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">manager@nordicroast.com</div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials('manager@nordicroast.com', 'manager123')}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-left transition group"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-indigo-700">
+                    <UserCheck className="w-4 h-4 text-indigo-600" /> Cafe Manager
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 truncate">manager@nordicroast.com</div>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoCredentials('kitchen@nordicroast.com', 'kitchen123')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-left transition group"
-              >
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-amber-700">
-                  <ChefHat className="w-4 h-4 text-amber-600" /> Kitchen KDS
-                </div>
-                <div className="text-[11px] text-slate-500 mt-0.5 truncate">kitchen@nordicroast.com</div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoCredentials('kitchen@nordicroast.com', 'kitchen123')}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-left transition group"
+                >
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 group-hover:text-amber-700">
+                    <ChefHat className="w-4 h-4 text-amber-600" /> Kitchen KDS
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 truncate">kitchen@nordicroast.com</div>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

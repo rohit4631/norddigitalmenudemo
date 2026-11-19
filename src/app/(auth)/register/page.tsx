@@ -8,11 +8,11 @@ import { UtensilsCrossed, AlertCircle, Loader2, ArrowRight } from 'lucide-react'
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: 'Alexander Lindqvist',
-    email: 'alexander@nordicroast.com',
-    phone: '9876543210',
-    password: 'owner123',
-    cafeName: 'Nordic Artisan Roasters',
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    cafeName: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

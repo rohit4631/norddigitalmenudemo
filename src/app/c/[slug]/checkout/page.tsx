@@ -42,11 +42,11 @@ export default function CustomerCheckoutPage({ params }: { params: { slug: strin
     tableParam ? 'DINE_IN' : 'DINE_IN'
   );
   const [tableNumber, setTableNumber] = useState(tableParam || 'T-01');
-  const [customerName, setCustomerName] = useState('Alexander Lindqvist');
-  const [customerPhone, setCustomerPhone] = useState('9876543210');
-  const [customerEmail, setCustomerEmail] = useState('alexander@nordicroast.com');
-  const [deliveryAddress, setDeliveryAddress] = useState('42 Fjällgatan, Södermalm, Stockholm');
-  const [notes, setNotes] = useState('Please serve hot with extra napkins');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [notes, setNotes] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null);

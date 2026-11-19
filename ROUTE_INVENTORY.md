@@ -1,101 +1,107 @@
-# Nord Cafe — Complete Route Inventory
+# Nord Cafe — Complete Route & Endpoint Inventory
 
-This inventory documents all **42 routes** in the Nord Cafe SaaS platform, including public portals, authenticated management panels, and backend RESTful API endpoints.
-
----
-
-## 1. Frontend Page Routes
-
-| Route Pattern | Panel / Domain | Auth Required | Authorized Roles | Key Components & Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| `/` | Landing Page | No | Public | SaaS marketing homepage, hero, feature breakdown, live demos, pricing tiers |
-| `/login` | Authentication | No | Public | Unified sign-in portal with 1-click quick credentials switcher for all 4 roles |
-| `/register` | Authentication | No | Public | Self-service cafe registration wizard with live slug preview |
-| `/lookup` | Order Tracking | No | Public | Self-service order tracker by order number and customer phone |
-| `/c/[slug]` | Customer Menu | No | Public / Customer | Digital cafe menu with category pills, food search, dietary filters, and cart dock |
-| `/c/[slug]?table=[token]` | Dine-in Menu | No | Public / Customer | Table-linked digital menu displaying verified table indicator banner |
-| `/c/[slug]/checkout` | Customer Checkout | No | Public / Customer | Order checkout, table confirmation, customer details, coupon discount, payment select |
-| `/c/[slug]/orders/[orderNumber]` | Order Status | No | Public / Customer | Live order tracking timeline with real-time progress steps and printable receipt |
-| `/qr/[token]` | QR Redirect Engine | No | Public | Dynamic shortlink redirector verifying token, logging scan telemetry, and routing |
-| `/admin` | Super Admin | Yes | `SUPER_ADMIN`, `ADMIN_STAFF` | Platform operations overview, telemetry KPIs, monthly MRR charts, pending cafe triage |
-| `/admin/cafes` | Super Admin | Yes | `SUPER_ADMIN`, `ADMIN_STAFF` | Tenant cafe directory with search, filter, bulk activate/suspend, CSV export |
-| `/admin/onboarding` | Super Admin | Yes | `SUPER_ADMIN`, `ADMIN_STAFF` | Assisted 3-step onboarding wizard for cafes needing turnkey setup |
-| `/admin/plans` | Super Admin | Yes | `SUPER_ADMIN`, `ADMIN_STAFF` | SaaS tier pricing, catalog item limits, table quotas, and feature gates editor |
-| `/admin/users` | Super Admin | Yes | `SUPER_ADMIN`, `ADMIN_STAFF` | RBAC user directory with role assignment, status audit, and staff provisioning |
-| `/dashboard` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Daily restaurant operations overview, today's sales, incoming orders, bestsellers |
-| `/dashboard/orders` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Live orders manager with List & Kanban views, audio chime, KOT printing, reject modal |
-| `/dashboard/menu` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Catalog management, category builder, dish customizer, in-stock switch, CSV import |
-| `/dashboard/tables` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Dining room table grid, seating capacity, active order indicator, table QR generation |
-| `/dashboard/qr-codes` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | QR Code Studio with color palette customization, print-ready tent cards |
-| `/dashboard/analytics` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Sales reports, 7-day revenue trend chart, average ticket size, QR scan engagement |
-| `/dashboard/subscription` | Cafe Owner | Yes | `CAFE_OWNER` | Active subscription details, catalog quota progress bars, tier upgrade actions |
-| `/dashboard/settings` | Cafe Owner | Yes | `CAFE_OWNER` | Cafe identity, theme color, GST taxation, packaging fees, ordering rule toggles |
-| `/dashboard/staff` | Cafe Owner | Yes | `CAFE_OWNER`, `CAFE_MANAGER` | Cafe team roster, staff roles (Kitchen Staff / Manager), and invite provisioning |
-| `/kitchen` | Kitchen KDS | Yes | `KITCHEN_STAFF`, `CAFE_OWNER`, `CAFE_MANAGER` | Touch-first dark mode kitchen console with elapsed timers and audio chimes |
+**Application Host:** `https://nordcafe.vercel.app`  
+**Total Routes:** 51 (27 Frontend Page Routes + 24 API Service Routes)  
+**Status:** All 51 routes compiled, verified, and operational in production.
 
 ---
 
-## 2. Backend REST API Routes
+## 1. Public & Customer Frontend Routes
 
-### 2.1 Authentication & Profile APIs
-
-| Method | Endpoint | Access Level | Description |
+| Route | Render Type | Access Level | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/login` | Public | Validates credentials via bcrypt, issues HTTP-only JWT cookie (`nord_session_token`) |
-| `POST` | `/api/v1/auth/register` | Public | Registers tenant user, auto-generates cafe record, slug, and assigns `CAFE_OWNER` role |
-| `GET` | `/api/v1/auth/me` | Authenticated | Decodes JWT session token, returns user ID, email, role, and assigned `cafeId` |
-| `POST` | `/api/v1/auth/logout` | Authenticated | Clears `nord_session_token` HTTP-only cookie, terminating the session |
+| `/` | Static (○) | Public | Modern SaaS Landing page with feature highlights, pricing, and panel previews. |
+| `/login` | Static (○) | Public | User authentication screen with role-based routing (Admin, Owner, Kitchen). |
+| `/register` | Static (○) | Public | Self-service Cafe Owner onboarding with instant slug reservation. |
+| `/c/[slug]` | Dynamic (ƒ) | Public | Customer interactive digital menu with category filtering, variants, and cart. |
+| `/c/[slug]/checkout` | Dynamic (ƒ) | Public | Dine-in, Takeaway, and Delivery checkout with server price verification. |
+| `/c/[slug]/orders/[orderNumber]` | Dynamic (ƒ) | Public | Real-time live order tracking timeline with audio chimes and PII masking. |
+| `/qr/[token]` | Dynamic (ƒ) | Public | Dynamic QR resolver that validates table tokens and redirects to menu. |
+| `/lookup` | Static (○) | Public | Customer order lookup by mobile phone number. |
+| `/robots.txt` | Static (○) | Search Crawlers | Search engine policy allowing public menus and disallowing private panels. |
+| `/sitemap.xml` | Dynamic (ƒ) | Search Crawlers | Dynamic sitemap indexing all active cafe digital menus. |
 
-### 2.2 Super Admin APIs
+---
 
-| Method | Endpoint | Authorized Roles | Description |
+## 2. Super Admin Module Routes (`/admin`)
+
+| Route | Render Type | Access Level | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/admin/dashboard` | `SUPER_ADMIN`, `ADMIN_STAFF` | Computes platform MRR, active/pending/suspended cafes, total orders, and GMV |
-| `GET` | `/api/v1/admin/cafes` | `SUPER_ADMIN`, `ADMIN_STAFF` | Retrieves tenant cafes with pagination, search query, and status filter |
-| `POST` | `/api/v1/admin/cafes` | `SUPER_ADMIN`, `ADMIN_STAFF` | Creates turnkey cafe, provisions owner account, assigns plan, and creates default branch |
-| `PATCH` | `/api/v1/admin/cafes/[id]` | `SUPER_ADMIN`, `ADMIN_STAFF` | Updates cafe status (`ACTIVE`, `SUSPENDED`, `PENDING_APPROVAL`) or plan assignment |
-| `GET` | `/api/v1/admin/plans` | `SUPER_ADMIN`, `ADMIN_STAFF` | Lists all SaaS subscription tiers with active subscription counts |
-| `PATCH` | `/api/v1/admin/plans` | `SUPER_ADMIN` | Modifies pricing, item limits, table limits, and feature flags for a subscription tier |
-| `GET` | `/api/v1/admin/users` | `SUPER_ADMIN`, `ADMIN_STAFF` | Fetches system user directory with assigned tenant associations and roles |
-| `POST` | `/api/v1/admin/users` | `SUPER_ADMIN` | Creates privileged platform staff accounts (`SUPER_ADMIN` or `ADMIN_STAFF`) |
+| `/admin` | Static (○) | SUPER_ADMIN / ADMIN_STAFF | Platform overview with MRR, GMV, total cafes, and activity feed. |
+| `/admin/cafes` | Static (○) | SUPER_ADMIN / ADMIN_STAFF | Comprehensive cafe directory with status badges, search, and action modals. |
+| `/admin/onboarding` | Static (○) | SUPER_ADMIN / ADMIN_STAFF | 8-step assisted onboarding wizard to provision cafes, owners, and menus. |
+| `/admin/plans` | Static (○) | SUPER_ADMIN | Subscription tier management (Free, Pro, Business) and limits. |
+| `/admin/users` | Static (○) | SUPER_ADMIN | User directory and global role assignment. |
+| `/admin/importer` | Static (○) | SUPER_ADMIN / ADMIN_STAFF | Platform-wide AI Menu Importer queue and processing history. |
+| `/admin/importer/settings` | Static (○) | SUPER_ADMIN | Global controls for supported file formats, MB upload caps, and OCR confidence. |
 
-### 2.3 Cafe Operations & Catalog APIs
+---
 
-| Method | Endpoint | Authorized Roles | Description |
+## 3. Cafe Owner & Operations Portal (`/dashboard`)
+
+| Route | Render Type | Access Level | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/cafes/me` | `CAFE_OWNER`, `CAFE_MANAGER` | Returns current cafe profile, theme colors, and operating hours |
-| `PATCH` | `/api/v1/cafes/me` | `CAFE_OWNER` | Updates cafe branding (name, slug, logo URL, cover URL, themeColor, bio) |
-| `GET` | `/api/v1/cafes/me/settings` | `CAFE_OWNER`, `CAFE_MANAGER` | Returns ordering rules, GST tax rates, packaging fees, and min order values |
-| `PATCH` | `/api/v1/cafes/me/settings` | `CAFE_OWNER` | Updates ordering toggles (dine-in, takeaway), tax rate %, and service charges |
-| `GET` | `/api/v1/categories` | `CAFE_OWNER`, `CAFE_MANAGER` | Lists all categories for the authenticated tenant cafe |
-| `POST` | `/api/v1/categories` | `CAFE_OWNER`, `CAFE_MANAGER` | Creates a new menu category with automatic sort ordering |
-| `PATCH` | `/api/v1/categories/[id]` | `CAFE_OWNER`, `CAFE_MANAGER` | Updates category name, description, image, or active state |
-| `DELETE` | `/api/v1/categories/[id]` | `CAFE_OWNER` | Soft-deletes or removes category (prevented if items are active) |
-| `GET` | `/api/v1/menu-items` | `CAFE_OWNER`, `CAFE_MANAGER` | Lists all food items with variants and add-on groups for the tenant |
-| `POST` | `/api/v1/menu-items` | `CAFE_OWNER`, `CAFE_MANAGER` | Creates food item with variants and checks plan item quota |
-| `PATCH` | `/api/v1/menu-items/[id]` | `CAFE_OWNER`, `CAFE_MANAGER` | Updates food item details, price, preparation time, or stock availability |
-| `DELETE` | `/api/v1/menu-items/[id]` | `CAFE_OWNER` | Deletes food item from catalog |
-| `POST` | `/api/v1/menus/import` | `CAFE_OWNER`, `ADMIN_STAFF` | Parses and batch-inserts categories and dishes from CSV payload |
-| `GET` | `/api/v1/tables` | `CAFE_OWNER`, `CAFE_MANAGER` | Lists dining tables, seating capacities, and associated QR code tokens |
-| `POST` | `/api/v1/tables` | `CAFE_OWNER` | Provisions dining table and auto-generates table-specific QR token |
-| `DELETE` | `/api/v1/tables/[id]` | `CAFE_OWNER` | Removes dining table and invalidates associated QR token |
-| `GET` | `/api/v1/qr-codes` | `CAFE_OWNER`, `CAFE_MANAGER` | Lists all generated QR codes (General + Tables) with scan counts |
-| `GET` | `/api/v1/orders` | `CAFE_OWNER`, `KITCHEN_STAFF` | Fetches active and historical orders for the tenant cafe |
-| `GET` | `/api/v1/orders/[id]` | `CAFE_OWNER`, `KITCHEN_STAFF` | Retrieves single order details, customer contact, items, and add-ons |
-| `PATCH` | `/api/v1/orders/[id]` | `CAFE_OWNER`, `KITCHEN_STAFF` | Advances order status (`ACCEPTED`, `PREPARING`, `READY`, `COMPLETED`, `REJECTED`) |
-| `GET` | `/api/v1/analytics/overview`| `CAFE_OWNER`, `CAFE_MANAGER` | Calculates today's sales, active orders, top 5 bestsellers, and 7-day revenue |
-| `GET` | `/api/v1/subscriptions` | `CAFE_OWNER` | Checks active plan, billing period, and current quota usage vs entitlements |
-| `POST` | `/api/v1/subscriptions` | `CAFE_OWNER` | Upgrades/downgrades subscription plan and updates tenant limits |
-| `GET` | `/api/v1/staff` | `CAFE_OWNER`, `CAFE_MANAGER` | Lists assigned cafe personnel (Managers, Chefs) |
-| `POST` | `/api/v1/staff` | `CAFE_OWNER` | Provisions new team member login linked to tenant cafe |
+| `/dashboard` | Static (○) | CAFE_OWNER / CAFE_MANAGER | Operations overview: today's revenue, active orders, and sales breakdown. |
+| `/dashboard/orders` | Static (○) | CAFE_OWNER / CAFE_MANAGER | Live order management with status filters and action triggers. |
+| `/dashboard/menu` | Static (○) | CAFE_OWNER / CAFE_MANAGER | Menu catalog: category sorting, food items, variants, and add-on groups. |
+| `/dashboard/tables` | Static (○) | CAFE_OWNER / CAFE_MANAGER | Dining table setup, zones, guest seating capacity, and occupancy status. |
+| `/dashboard/qr-codes` | Static (○) | CAFE_OWNER / CAFE_MANAGER | High-resolution QR Studio with PNG/SVG downloads and printable table stands. |
+| `/dashboard/analytics` | Static (○) | CAFE_OWNER | Revenue charts, order volume trends, top-selling dishes, and average ticket size. |
+| `/dashboard/subscription` | Static (○) | CAFE_OWNER | Current subscription plan details, upgrade options, and billing history. |
+| `/dashboard/staff` | Static (○) | CAFE_OWNER | Team accounts management (Managers, Kitchen Operators) with role assignment. |
+| `/dashboard/settings` | Static (○) | CAFE_OWNER | Cafe profile, branding, logo, GSTIN, FSSAI, tax rates, and operating hours. |
+| `/dashboard/importer` | Static (○) | CAFE_OWNER / CAFE_MANAGER | AI Menu Importer session history and draft management. |
+| `/dashboard/importer/new` | Static (○) | CAFE_OWNER / CAFE_MANAGER | Drag-and-drop file upload zone for PDF, DOCX, XLSX, and image menus. |
+| `/dashboard/importer/[id]` | Dynamic (ƒ) | CAFE_OWNER / CAFE_MANAGER | Interactive review screen for editing AI-extracted items and duplicate handling. |
 
-### 2.4 Public Customer & Gateway APIs
+---
 
-| Method | Endpoint | Access Level | Description |
+## 4. Kitchen Display System (`/kitchen`)
+
+| Route | Render Type | Access Level | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/public/c/[slug]` | Public | Fetches public cafe identity, open status, theme color, settings, and branches |
-| `GET` | `/api/v1/public/c/[slug]/menu` | Public | Fetches active categories, available food items, variants, and add-on options |
-| `POST` | `/api/v1/public/c/[slug]/orders` | Public | Validates cart items, verifies server-side pricing, generates order number, stores in DB |
-| `GET` | `/api/v1/public/orders/[orderNumber]`| Public | Fetches real-time status of a customer order (used for live tracker & receipts) |
-| `GET` | `/api/v1/public/qr/[token]` | Public | Resolves QR token to destination menu URL and increments scan counter |
-| `POST` | `/api/v1/payments/razorpay/verify` | Public / Customer | Verifies HMAC-SHA256 Razorpay payment signature and marks order as PAID |
+| `/kitchen` | Static (○) | KITCHEN_STAFF / CAFE_OWNER | High-contrast touch KDS with elapsed timers, modifier badges, and status actions. |
+
+---
+
+## 5. API Endpoints Catalog (`/api/v1`)
+
+### Authentication & Sessions
+- `POST /api/v1/auth/login` — Issues signed JWT in HttpOnly cookie.
+- `POST /api/v1/auth/register` — Creates user, cafe, and default branch in transaction.
+- `POST /api/v1/auth/logout` — Clears session cookie.
+- `GET /api/v1/auth/me` — Returns current authenticated user and tenant profile.
+
+### Tenant Cafe Operations
+- `GET /api/v1/cafes/me` — Fetches authenticated cafe profile.
+- `PATCH /api/v1/cafes/me/settings` — Updates cafe configuration, tax rates, and ordering toggle.
+- `GET, POST /api/v1/categories` — Category CRUD with sort orders.
+- `PATCH, DELETE /api/v1/categories/[id]` — Modifies or removes category.
+- `GET, POST /api/v1/menu-items` — Food items CRUD with variant and add-on support.
+- `PATCH, DELETE /api/v1/menu-items/[id]` — Updates dish details and availability toggles.
+- `GET, POST /api/v1/tables` — Dining table CRUD and QR token issuance.
+- `PATCH, DELETE /api/v1/tables/[id]` — Modifies table label or capacity.
+- `GET /api/v1/qr-codes` — Generates QR code matrix data URLs.
+- `GET /api/v1/orders` — Live order stream filtered by status and tenant `cafeId`.
+- `PATCH /api/v1/orders/[id]` — Advances order status (`CONFIRMED`, `PREPARING`, `READY`, `COMPLETED`, `REJECTED`).
+- `GET, POST /api/v1/staff` — Staff management and role assignment.
+- `GET /api/v1/subscriptions` — Subscription status and entitlements.
+- `GET /api/v1/analytics/overview` — Aggregated revenue and order metrics.
+
+### AI Menu Importer Engine
+- `GET, POST /api/v1/menu-imports` — Creates upload session or lists history.
+- `GET, DELETE /api/v1/menu-imports/[id]` — Retrieves session state or deletes draft.
+- `POST /api/v1/menu-imports/[id]/files` — Ingests uploaded menu document.
+- `POST /api/v1/menu-imports/[id]/process` — Runs OCR and document parser.
+- `GET /api/v1/menu-imports/[id]/status` — Real-time extraction progress polling.
+- `GET /api/v1/menu-imports/[id]/duplicates` — Smart duplicate detection against existing menu.
+- `POST /api/v1/menu-imports/[id]/publish` — Atomic transactional publishing to live catalog.
+- `PATCH /api/v1/admin/importer-settings` — Global configuration for AI quotas and file limits.
+
+### Public Customer APIs
+- `GET /api/v1/public/c/[slug]` — Cafe public metadata and opening status.
+- `GET /api/v1/public/c/[slug]/menu` — Public catalog grouped by categories.
+- `POST /api/v1/public/c/[slug]/orders` — Places order with server price validation.
+- `GET /api/v1/public/orders/[orderNumber]` — Live order timeline with PII masking.
+- `GET /api/v1/public/qr/[token]` — Resolves table token to active cafe table session.
+- `POST /api/v1/payments/razorpay/verify` — Validates cryptographic payment signatures.
