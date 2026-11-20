@@ -75,9 +75,19 @@ describe('Nord Cafe Production Test Suite', () => {
   });
 
   it('5. Razorpay Signature Verification & Security', () => {
-    // Demo / mock signature
+    // 1. Mock / test signature
     const validMock = verifyRazorpaySignature('ord_123', 'pay_123', 'mock_signature_valid');
     assert.equal(validMock, true);
+
+    // 2. Real HMAC-SHA256 signature calculation & validation
+    const crypto = require('crypto');
+    const secret = process.env.RAZORPAY_KEY_SECRET || 'bTk6J1OGjc2vsx49vu4dMM9B';
+    const orderId = 'order_test_999';
+    const paymentId = 'pay_test_888';
+    const validSig = crypto.createHmac('sha256', secret).update(`${orderId}|${paymentId}`).digest('hex');
+
+    assert.equal(verifyRazorpaySignature(orderId, paymentId, validSig), true);
+    assert.equal(verifyRazorpaySignature(orderId, paymentId, 'tampered_invalid_signature_hex'), false);
   });
 
   it('6. Subscription Plans and Entitlements in Postgres', async () => {

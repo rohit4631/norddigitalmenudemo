@@ -5,7 +5,10 @@ import { verifyRazorpaySignature } from '@/lib/razorpay';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = body;
+    const orderId = body.orderId || body.order_id;
+    const razorpayOrderId = body.razorpayOrderId || body.razorpay_order_id;
+    const razorpayPaymentId = body.razorpayPaymentId || body.razorpay_payment_id;
+    const razorpaySignature = body.razorpaySignature || body.razorpay_signature;
 
     if (!orderId || !razorpayPaymentId) {
       return NextResponse.json(
