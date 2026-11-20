@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-
+import { getActiveRazorpayCredentials } from '@/lib/razorpay';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const { keySecret } = getActiveRazorpayCredentials();
     if (!keySecret) {
       return NextResponse.json(
         { success: false, error: 'Razorpay Key Secret is not configured on server' },

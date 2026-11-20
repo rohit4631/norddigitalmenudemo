@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRazorpayClient, createRazorpayOrder } from '@/lib/razorpay';
+import { getRazorpayClient, createRazorpayOrder, getActiveRazorpayCredentials } from '@/lib/razorpay';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,8 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const receiptId = receipt || `rcpt_${Date.now()}`;
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const { keyId, keySecret } = getActiveRazorpayCredentials();
 
     if (!keyId || !keySecret) {
       return NextResponse.json(

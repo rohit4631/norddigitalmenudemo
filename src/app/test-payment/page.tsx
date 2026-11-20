@@ -95,7 +95,10 @@ export default function RazorpayTestPaymentPage() {
       addLog('✓ Razorpay checkout.js ready. Opening payment modal...');
       setStep('AWAITING_PAYMENT');
 
-      const keyId = orderData.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_U2KY0oQlYOVlgB';
+      let keyId = orderData.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_U2KYtEI7v8825p';
+      if (keyId === 'rzp_test_U2KY0oQlYOVlgB' || !keyId.startsWith('rzp_')) {
+        keyId = 'rzp_test_U2KYtEI7v8825p';
+      }
 
       // 3. Configure Razorpay Standard Modal
       const options: any = {

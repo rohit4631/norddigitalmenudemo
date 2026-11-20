@@ -4,7 +4,7 @@ import { prisma } from '../src/lib/prisma';
 import { hashPassword, verifyPassword, createSessionToken, verifySessionToken } from '../src/lib/auth';
 import { formatCurrency, generateOrderNumber } from '../src/lib/utils';
 import { generateQRCodeDataUrl } from '../src/lib/qr';
-import { verifyRazorpaySignature } from '../src/lib/razorpay';
+import { verifyRazorpaySignature, getActiveRazorpayCredentials } from '../src/lib/razorpay';
 
 describe('Nord Cafe Production Test Suite', () => {
   it('1. Tenant Isolation & Database Integrity', async () => {
@@ -81,7 +81,7 @@ describe('Nord Cafe Production Test Suite', () => {
 
     // 2. Real HMAC-SHA256 signature calculation & validation
     const crypto = require('crypto');
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'bTk6J1OGjc2vsx49vu4dMM9B';
+    const secret = getActiveRazorpayCredentials().keySecret;
     const orderId = 'order_test_999';
     const paymentId = 'pay_test_888';
     const validSig = crypto.createHmac('sha256', secret).update(`${orderId}|${paymentId}`).digest('hex');

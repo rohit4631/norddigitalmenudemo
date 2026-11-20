@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateOrderNumber } from '@/lib/utils';
-import { createRazorpayOrder } from '@/lib/razorpay';
+import { createRazorpayOrder, getActiveRazorpayCredentials } from '@/lib/razorpay';
 
 export async function POST(
   req: NextRequest,
@@ -350,10 +350,7 @@ export async function POST(
             orderId: razorpayOrderData.id,
             amount: razorpayOrderData.amount,
             currency: razorpayOrderData.currency,
-            keyId:
-              process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-              process.env.RAZORPAY_KEY_ID ||
-              'rzp_test_U2KY0oQlYOVlgB',
+            keyId: getActiveRazorpayCredentials().keyId,
           }
         : null,
     });

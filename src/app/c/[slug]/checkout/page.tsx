@@ -184,10 +184,14 @@ export default function CustomerCheckoutPage({ params }: { params: { slug: strin
       if (paymentMethod === 'RAZORPAY' && data.razorpay) {
         const isLoaded = await loadRazorpayScript();
         if (isLoaded && (window as any).Razorpay) {
-          const keyId =
+          let keyId =
             data.razorpay.keyId ||
             process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-            'rzp_test_U2KY0oQlYOVlgB';
+            'rzp_test_U2KYtEI7v8825p';
+
+          if (keyId === 'rzp_test_U2KY0oQlYOVlgB' || !keyId.startsWith('rzp_')) {
+            keyId = 'rzp_test_U2KYtEI7v8825p';
+          }
 
           const options: any = {
             key: keyId,
