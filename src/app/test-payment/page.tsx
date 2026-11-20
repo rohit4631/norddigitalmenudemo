@@ -98,14 +98,13 @@ export default function RazorpayTestPaymentPage() {
       const keyId = orderData.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_U2KY0oQlYOVlgB';
 
       // 3. Configure Razorpay Standard Modal
-      const options = {
+      const options: any = {
         key: keyId,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'Nord Cafe Platform',
         description: `Test Payment for ${formatCurrency(amountRupees)}`,
         image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200&q=80',
-        order_id: orderId,
         prefill: {
           name: customerName,
           email: customerEmail,
@@ -114,7 +113,13 @@ export default function RazorpayTestPaymentPage() {
         theme: {
           color: '#2563EB',
         },
-        handler: async function (response: any) {
+      };
+
+      if (orderId && !orderId.startsWith('order_test_') && !orderId.startsWith('order_mock_')) {
+        options.order_id = orderId;
+      }
+
+      options.handler = async function (response: any) {
           addLog('✓ Payment completed in modal! Received signature.');
           addLog(`  • Payment ID: ${response.razorpay_payment_id}`);
           addLog(`  • Order ID: ${response.razorpay_order_id}`);
@@ -156,16 +161,16 @@ export default function RazorpayTestPaymentPage() {
           } finally {
             setLoading(false);
           }
-        },
-        modal: {
+        };
+
+        options.modal = {
           ondismiss: function () {
             setLoading(false);
             setStep('FAILED');
             setErrorMsg('Payment modal was closed by user without completing transaction.');
             addLog('⚠️ User dismissed Razorpay checkout modal.');
           },
-        },
-      };
+        };
 
       const rzp = new (window as any).Razorpay(options);
 

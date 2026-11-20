@@ -350,7 +350,10 @@ export async function POST(
             orderId: razorpayOrderData.id,
             amount: razorpayOrderData.amount,
             currency: razorpayOrderData.currency,
-            keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_nordcafe_demo',
+            keyId:
+              process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+              process.env.RAZORPAY_KEY_ID ||
+              'rzp_test_U2KY0oQlYOVlgB',
           }
         : null,
     });

@@ -184,15 +184,18 @@ export default function CustomerCheckoutPage({ params }: { params: { slug: strin
       if (paymentMethod === 'RAZORPAY' && data.razorpay) {
         const isLoaded = await loadRazorpayScript();
         if (isLoaded && (window as any).Razorpay) {
-          const keyId = data.razorpay.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_U2KY0oQlYOVlgB';
-          const options = {
+          const keyId =
+            data.razorpay.keyId ||
+            process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+            'rzp_test_U2KY0oQlYOVlgB';
+
+          const options: any = {
             key: keyId,
             amount: data.razorpay.amount,
             currency: data.razorpay.currency || 'INR',
             name: cafe?.name || 'Nord Cafe',
             description: `Order #${data.order.orderNumber}`,
             image: cafe?.logo || undefined,
-            order_id: data.razorpay.orderId,
             prefill: {
               name: customerName,
               contact: customerPhone,
@@ -231,10 +234,20 @@ export default function CustomerCheckoutPage({ params }: { params: { slug: strin
             modal: {
               ondismiss: function () {
                 setSubmitting(false);
-                setError('Payment modal closed. Your order is pending payment.');
+                setError('Payment modal was closed. You can retry or choose Pay at Counter.');
               },
             },
           };
+
+          // IMPORTANT: Only attach order_id if it was verified and created on Razorpay servers!
+          // Passing an unindexed mock ID causes Razorpay checkout CDN to display "Uh! oh! Something went wrong"
+          if (
+            data.razorpay.orderId &&
+            !data.razorpay.orderId.startsWith('order_test_') &&
+            !data.razorpay.orderId.startsWith('order_mock_')
+          ) {
+            options.order_id = data.razorpay.orderId;
+          }
 
           const rzp = new (window as any).Razorpay(options);
           rzp.on('payment.failed', function (resp: any) {
