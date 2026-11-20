@@ -351,8 +351,8 @@ export default function DashboardOrdersPage() {
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                         <span className="font-mono font-bold text-base text-slate-900">
                           {ord.orderNumber}
                         </span>
@@ -368,7 +368,7 @@ export default function DashboardOrdersPage() {
                         </span>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-left sm:text-right flex items-baseline sm:flex-col justify-between sm:justify-start gap-1">
                         <div className="font-extrabold text-base text-slate-900">
                           {formatCurrency(ord.totalAmount)}
                         </div>
@@ -377,7 +377,7 @@ export default function DashboardOrdersPage() {
                     </div>
 
                     {/* Customer info & items */}
-                    <div className="mt-3 text-xs text-slate-600 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                    <div className="mt-3 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-t border-slate-100 pt-2.5">
                       <div>
                         <span className="font-semibold text-slate-800">{ord.customerName}</span> (
                         {ord.customerPhone})
