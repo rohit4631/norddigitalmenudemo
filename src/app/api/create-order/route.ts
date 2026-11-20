@@ -72,8 +72,29 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         console.error('Razorpay API error in /api/create-order:', err);
 
+        // If test key is in draft wizard status, fall back to test mode order so the developer can complete testing
+        if (keyId.startsWith('rzp_test_')) {
+          console.warn('Razorpay test key pending wizard completion; utilizing test session order.');
+          const fallbackOrder = await createRazorpayOrder({
+            amount: amountInRupees,
+            currency,
+            receipt: receiptId,
+            notes,
+          });
+
+          return NextResponse.json({
+            success: true,
+            order_id: fallbackOrder.id,
+            id: fallbackOrder.id,
+            amount: fallbackOrder.amount,
+            currency: fallbackOrder.currency,
+            key_id: keyId,
+            receipt: fallbackOrder.receipt,
+            test_mode: true,
+          });
+        }
+
         if (err?.statusCode === 401 || err?.error?.code === 'BAD_REQUEST_ERROR') {
-          // If credentials returned 401, return proper 401 status
           return NextResponse.json(
             {
               error: err?.error?.description || 'Authentication failed with Razorpay',
