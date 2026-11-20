@@ -309,44 +309,44 @@ export default function CustomerCheckoutPage({ params }: { params: { slug: strin
             Dining & Pickup Mode
           </h2>
 
-          <div className="grid grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-1">
             <button
               type="button"
               onClick={() => setOrderType('DINE_IN')}
-              className={`p-3 rounded-xl border text-center transition ${
+              className={`p-2 sm:p-3 rounded-xl border text-center transition ${
                 orderType === 'DINE_IN'
                   ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-bold ring-1 ring-blue-500'
                   : 'border-slate-200 hover:bg-slate-50 text-slate-700'
               }`}
             >
               <UtensilsCrossed className="w-4 h-4 mx-auto mb-1 text-blue-600" />
-              <div className="text-xs font-bold">Table Dine-In</div>
+              <div className="text-[11px] sm:text-xs font-bold leading-tight">Table Dine-In</div>
             </button>
 
             <button
               type="button"
               onClick={() => setOrderType('TAKEAWAY')}
-              className={`p-3 rounded-xl border text-center transition ${
+              className={`p-2 sm:p-3 rounded-xl border text-center transition ${
                 orderType === 'TAKEAWAY'
                   ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-bold ring-1 ring-blue-500'
                   : 'border-slate-200 hover:bg-slate-50 text-slate-700'
               }`}
             >
               <ShoppingBag className="w-4 h-4 mx-auto mb-1 text-amber-600" />
-              <div className="text-xs font-bold">Takeaway Pickup</div>
+              <div className="text-[11px] sm:text-xs font-bold leading-tight">Takeaway Pickup</div>
             </button>
 
             <button
               type="button"
               onClick={() => setOrderType('DELIVERY')}
-              className={`p-3 rounded-xl border text-center transition ${
+              className={`p-2 sm:p-3 rounded-xl border text-center transition ${
                 orderType === 'DELIVERY'
                   ? 'border-blue-600 bg-blue-50/50 text-blue-900 font-bold ring-1 ring-blue-500'
                   : 'border-slate-200 hover:bg-slate-50 text-slate-700'
               }`}
             >
               <MapPin className="w-4 h-4 mx-auto mb-1 text-emerald-600" />
-              <div className="text-xs font-bold">Local Delivery</div>
+              <div className="text-[11px] sm:text-xs font-bold leading-tight">Local Delivery</div>
             </button>
           </div>
 

@@ -121,6 +121,71 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
     setCustomizingItem(null);
   };
 
+  const getItemCartQty = (itemId: string) => {
+    return cart
+      .filter((c) => c.menuItemId === itemId)
+      .reduce((sum, c) => sum + c.quantity, 0);
+  };
+
+  const handleIncrementItem = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    if (!item.isAvailable) return;
+    const hasCustomizations =
+      (item.variants && item.variants.length > 0) ||
+      (item.menuItemAddonGroups && item.menuItemAddonGroups.length > 0);
+
+    if (hasCustomizations) {
+      handleOpenItem(item);
+    } else {
+      const existingIdx = cart.findIndex(
+        (c) => c.menuItemId === item.id && !c.variant && (!c.addons || c.addons.length === 0)
+      );
+      if (existingIdx > -1) {
+        const updated = [...cart];
+        updated[existingIdx].quantity += 1;
+        updated[existingIdx].itemTotalPrice =
+          updated[existingIdx].basePrice * updated[existingIdx].quantity;
+        setCart(updated);
+        soundFx.playBlip();
+      } else {
+        const cartLineItem: CartItem = {
+          id: `${item.id}_direct_${Date.now()}`,
+          menuItemId: item.id,
+          name: item.name,
+          image: item.image,
+          foodType: item.foodType,
+          basePrice: item.basePrice,
+          variant: null,
+          addons: [],
+          quantity: 1,
+          itemTotalPrice: item.basePrice,
+        };
+        setCart((prev) => [...prev, cartLineItem]);
+        soundFx.playBlip();
+      }
+    }
+  };
+
+  const handleDecrementItem = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    const existingIdx = cart.findLastIndex((c) => c.menuItemId === item.id);
+    if (existingIdx > -1) {
+      const updated = [...cart];
+      if (updated[existingIdx].quantity > 1) {
+        updated[existingIdx].quantity -= 1;
+        const unitP =
+          updated[existingIdx].itemTotalPrice / (updated[existingIdx].quantity + 1);
+        updated[existingIdx].itemTotalPrice =
+          unitP * updated[existingIdx].quantity;
+        setCart(updated);
+      } else {
+        updated.splice(existingIdx, 1);
+        setCart(updated);
+      }
+      soundFx.playBlip();
+    }
+  };
+
   const totalCartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
   const totalCartSubtotal = cart.reduce((acc, it) => acc + it.itemTotalPrice, 0);
 
@@ -198,11 +263,11 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
                   <img
                     src={cafe.logo}
                     alt={cafe.name}
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-white shadow-md bg-white shrink-0 -mt-10 sm:-mt-12 relative z-10"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white shadow-md bg-white shrink-0 -mt-10 sm:-mt-12 relative z-10"
                   />
                 ) : (
                   <div
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-md shrink-0 -mt-10 sm:-mt-12 relative z-10"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center font-black text-2xl text-white shadow-md shrink-0 -mt-10 sm:-mt-12 relative z-10"
                     style={{ backgroundColor: primaryColor }}
                   >
                     {cafe.name.charAt(0)}
@@ -377,101 +442,140 @@ export default function CustomerMenuPage({ params }: { params: { slug: string } 
               </div>
 
               {/* Balanced Food Cards Grid: 1 col on mobile, 2 cols on md+ */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {visibleItems.map((item: any) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleOpenItem(item)}
-                    className={`bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md transition flex justify-between gap-3.5 group cursor-pointer ${
-                      item.isAvailable ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-60'
-                    }`}
-                  >
-                    {/* Content Left */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+                {visibleItems.map((item: any) => {
+                  const itemCartQty = getItemCartQty(item.id);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleOpenItem(item)}
+                      className={`bg-white rounded-3xl border p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all flex items-start justify-between gap-3 sm:gap-4 relative group cursor-pointer active:scale-[0.99] ${
+                        item.isAvailable ? 'border-slate-200/90 hover:border-slate-300' : 'border-slate-200 opacity-60'
+                      }`}
+                    >
+                      {/* Content Left */}
+                      <div className="flex-1 min-w-0 pr-1">
                         {/* Title & Dietary Tag */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2">
                           <div
-                            className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 ${
+                            className={`w-3.5 h-3.5 mt-0.5 rounded-sm border flex items-center justify-center shrink-0 ${
                               item.foodType === 'NON_VEG'
                                 ? 'border-rose-600'
+                                : item.foodType === 'EGG'
+                                ? 'border-amber-600'
                                 : 'border-emerald-600'
                             }`}
                             title={item.foodType}
                           >
                             <div
                               className={`w-1.5 h-1.5 rounded-full ${
-                                item.foodType === 'NON_VEG' ? 'bg-rose-600' : 'bg-emerald-600'
+                                item.foodType === 'NON_VEG'
+                                  ? 'bg-rose-600'
+                                  : item.foodType === 'EGG'
+                                  ? 'bg-amber-600'
+                                  : 'bg-emerald-600'
                               }`}
                             />
                           </div>
 
-                          <h3 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition truncate">
-                            {item.name}
-                          </h3>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition leading-snug line-clamp-2">
+                                {item.name}
+                              </h3>
+                              {item.isBestseller && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                  ★ Bestseller
+                                </span>
+                              )}
+                            </div>
 
-                          {item.isBestseller && (
-                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                              ★ Bestseller
-                            </span>
+                            {/* Price & Variant Pill */}
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="font-extrabold text-sm sm:text-base text-slate-900">
+                                {formatCurrency(item.basePrice)}
+                              </span>
+                              {item.variants && item.variants.length > 0 && (
+                                <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  Customizable
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Description */}
+                            {item.description && (
+                              <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Image & Interactive Stepper / Add Button Right */}
+                      <div className="relative shrink-0 w-28 sm:w-32 flex flex-col items-center">
+                        <div className="w-28 h-24 sm:w-32 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs relative">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex flex-col items-center justify-center text-slate-400">
+                              <UtensilsCrossed className="w-6 h-6 mb-1 text-slate-300" />
+                              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">Fresh</span>
+                            </div>
                           )}
                         </div>
 
-                        {/* Description */}
-                        {item.description && (
-                          <p className="mt-1 text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                            {item.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Price & Variant Pill */}
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="font-extrabold text-sm text-slate-900">
-                          {formatCurrency(item.basePrice)}
-                        </span>
-                        {item.variants && item.variants.length > 0 && (
-                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                            Customizable
+                        {/* Stepper or ADD Button */}
+                        {item.isAvailable ? (
+                          <div className="mt-[-16px] z-10">
+                            {itemCartQty > 0 ? (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center bg-white border-2 border-emerald-600 rounded-xl shadow-md overflow-hidden"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDecrementItem(e, item)}
+                                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 font-extrabold text-sm transition"
+                                >
+                                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                                <span className="px-2 font-black text-xs sm:text-sm text-emerald-700 select-none">
+                                  {itemCartQty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleIncrementItem(e, item)}
+                                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 font-extrabold text-sm transition"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => handleIncrementItem(e, item)}
+                                className="px-4 py-1.5 sm:px-5 sm:py-1.5 bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black shadow-md hover:shadow-lg transition active:scale-95 flex items-center gap-1 uppercase tracking-wider"
+                              >
+                                <span>ADD</span>
+                                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="mt-[-12px] z-10 px-3 py-1 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg text-[10px] font-bold shadow-xs">
+                            SOLD OUT
                           </span>
                         )}
                       </div>
                     </div>
-
-                    {/* Image & Add Button Right */}
-                    <div className="relative shrink-0 flex flex-col items-center justify-between">
-                      {item.image ? (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-22 h-22 sm:w-24 sm:h-24 rounded-xl object-cover bg-slate-100 border border-slate-100"
-                        />
-                      ) : (
-                        <div className="w-22 h-22 sm:w-24 sm:h-24 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-xs font-bold">
-                          Nord
-                        </div>
-                      )}
-
-                      {/* Add Button */}
-                      {item.isAvailable ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenItem(item);
-                          }}
-                          className="mt-[-14px] px-4 py-1 bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-black shadow-sm transition active:scale-95"
-                        >
-                          ADD +
-                        </button>
-                      ) : (
-                        <span className="mt-[-14px] px-2.5 py-1 bg-slate-100 border border-slate-300 text-slate-400 rounded-lg text-[10px] font-bold">
-                          SOLD OUT
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
